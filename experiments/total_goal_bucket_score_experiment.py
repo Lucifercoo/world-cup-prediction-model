@@ -10,7 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-import backtest_world_cup_continuous_total_goals as historical
+from backtests import backtest_world_cup_continuous_total_goals as historical
 import predict_fifa_profile as profile_model
 
 

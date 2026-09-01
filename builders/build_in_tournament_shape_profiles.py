@@ -319,7 +319,10 @@ def build_rows() -> list[dict[str, str]]:
         event_a = events.get((key, result.team_a))
         event_b = events.get((key, result.team_b))
         if event_a is None or event_b is None:
-            raise RuntimeError(f"missing adjustment event for {match_name}; run build_in_tournament_adjustments.py first")
+            raise RuntimeError(
+                f"missing adjustment event for {match_name}; "
+                "run `uv run python -m builders.build_in_tournament_adjustments` first"
+            )
         labels = frozenset(set(observed_shapes.get(match_name, frozenset())) | set(score_implied_labels(result, event_a, event_b)))
         effective_after = result_datetime(result)
         favorite_a = event_a.p_for >= event_b.p_for

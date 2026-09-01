@@ -5,11 +5,11 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-import backtest_world_cup_fifa_profile_scores as base
-from backtest_world_cup_fifa_ranking import WORLD_CUPS, WorldCupMatch, load_world_cup_matches
+from backtests import backtest_world_cup_fifa_profile_scores as base
+from backtests.backtest_world_cup_fifa_ranking import WORLD_CUPS, WorldCupMatch, load_world_cup_matches
 
 
-OUTPUT_DIR = Path(__file__).resolve().parent / "output"
+OUTPUT_DIR = Path(__file__).resolve().parents[1] / "output"
 MATCH_CSV = OUTPUT_DIR / "in_tournament_adjustment_backtest_matches.csv"
 SUMMARY_MD = OUTPUT_DIR / "in_tournament_adjustment_backtest_summary.md"
 POINTS_LIMIT = 180.0

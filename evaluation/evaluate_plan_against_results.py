@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 RESULTS_CSV = ROOT / "data" / "world_cup_2026_results.csv"
 OUTPUT_DIR = ROOT / "output"
 DEFAULT_PLAN = OUTPUT_DIR / "realtime_context_adjusted_plan.csv"

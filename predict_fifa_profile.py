@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from build_fifa_annual_rankings import normalized_team
+from builders.build_fifa_annual_rankings import normalized_team
 from predict import DATA_DIR, OUTPUT_DIR, Match, canonical_team, host_multiplier, schedule
 from style_matchups import (
     apply_style_influence_gate,

@@ -11,7 +11,7 @@ from predict import RESULTS_CSV, canonical_team, download_results, parse_result_
 from profiles import OUTPUT_DIR
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 RANKING_CSV = DATA_DIR / "fifa_rankings_history_datofutbol.csv"
 MATCH_CSV = OUTPUT_DIR / "world_cup_fifa_ranking_backtest_matches.csv"

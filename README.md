@@ -126,7 +126,7 @@ before running models that depend on them.
 uv sync
 uv run python .\scripts\fetch_data.py
 uv run python .\profiles.py
-uv run python .\build_live_world_cup_rankings.py
+uv run python -m builders.build_live_world_cup_rankings
 uv run python .\predict_fifa_profile.py
 uv run python .\realtime_context_adjusted_plan.py
 ```
@@ -134,7 +134,7 @@ uv run python .\realtime_context_adjusted_plan.py
 Generate a dated Markdown report:
 
 ```powershell
-uv run python .\daily_match_report.py 2026-07-20 --no-refresh
+uv run python -m reports.daily_match_report 2026-07-20 --no-refresh
 ```
 
 Rebuild the README statistics image from the checked-in evaluation data:
@@ -146,7 +146,7 @@ uv run python .\scripts\generate_readme_stats.py
 Strict evaluation requires a local `output/realtime_context_cache/` archive:
 
 ```powershell
-uv run python .\evaluate_finished_from_realtime_cache.py
+uv run python -m evaluation.evaluate_finished_from_realtime_cache
 ```
 
 The full runtime cache is about 1.9 GB and is not committed. The derived
@@ -172,14 +172,18 @@ retrofitting. More detail is available in [the design document](docs/DESIGN.md).
 ```text
 .
 |-- data/          # Source datasets and tournament ledgers
+|-- analysis/      # One-off model analyses
+|-- backtests/     # Historical walk-forward evaluation
+|-- builders/      # Data and tournament-state builders
 |-- docs/          # Model design, data sources, and README assets
+|-- evaluation/    # Prediction and cache evaluation
 |-- experiments/   # Isolated model experiments
 |-- output/        # Selected predictions and evaluation results
+|-- reports/       # Daily Markdown report generation
 |-- scripts/       # Reproducible documentation utilities
 |-- predict*.py    # Base and profile prediction models
-|-- build_*.py     # Ranking, profile, and tournament-state builders
 |-- realtime_*.py  # Pre-match context adjustment and cache generation
-`-- evaluate_*.py  # Historical and strict cache evaluation
+`-- profiles.py    # Rolling team profile generation
 ```
 
 ## Data and Limitations

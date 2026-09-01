@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import predict_fifa_profile as profile_model
-from evaluate_plan_against_results import evaluate
+from evaluation.evaluate_plan_against_results import evaluate
 
 
 PLAN_CSV = ROOT / "output" / "realtime_context_adjusted_plan.csv"

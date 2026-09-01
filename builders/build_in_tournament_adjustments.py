@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import predict_fifa_profile as pfp
-from build_fifa_annual_rankings import normalized_team
+from builders.build_fifa_annual_rankings import normalized_team
 from predict import DATA_DIR, Match, canonical_team, schedule
 
 

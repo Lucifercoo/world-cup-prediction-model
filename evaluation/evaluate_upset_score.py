@@ -4,9 +4,9 @@ import csv
 import statistics
 from pathlib import Path
 
-import backtest_in_tournament_adjustments as inplay
-import backtest_world_cup_fifa_profile_scores as history
-from backtest_world_cup_fifa_ranking import WORLD_CUPS, load_world_cup_matches, outcome
+from backtests import backtest_in_tournament_adjustments as inplay
+from backtests import backtest_world_cup_fifa_profile_scores as history
+from backtests.backtest_world_cup_fifa_ranking import WORLD_CUPS, load_world_cup_matches, outcome
 from predict_fifa_profile import (
     best_score_inside_total_goal_buckets,
     outcome_adjusted_scores,
@@ -18,7 +18,7 @@ from predict_fifa_profile import (
 )
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "output"
 HISTORY_CSV = OUTPUT_DIR / "upset_score_history_backtest.csv"
 CURRENT_CSV = OUTPUT_DIR / "upset_score_2026_finished.csv"

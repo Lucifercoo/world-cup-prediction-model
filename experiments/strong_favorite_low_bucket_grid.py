@@ -11,7 +11,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from evaluate_plan_against_results import evaluate
+from evaluation.evaluate_plan_against_results import evaluate
 
 OUTPUT_DIR = ROOT / "output"
 PLAN_CSV = OUTPUT_DIR / "realtime_context_adjusted_plan.csv"

@@ -9,7 +9,7 @@ from pathlib import Path
 from predict import canonical_team
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 OUTPUT_DIR = ROOT / "output"
 SOURCE_CSV = DATA_DIR / "fifa_rankings_history_datofutbol.csv"

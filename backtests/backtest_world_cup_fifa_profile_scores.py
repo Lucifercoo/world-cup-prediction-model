@@ -7,7 +7,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from datetime import date, timedelta
 
-from backtest_world_cup_fifa_ranking import (
+from backtests.backtest_world_cup_fifa_ranking import (
     WORLD_CUPS,
     WorldCupMatch,
     load_ranking_snapshots,

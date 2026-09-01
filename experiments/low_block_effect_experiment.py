@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 import realtime_context_adjusted_plan as realtime
-from evaluate_plan_against_results import evaluate
+from evaluation.evaluate_plan_against_results import evaluate
 
 
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"

@@ -5,21 +5,21 @@ fifa_rankings_history_datofutbol.csv,excluded,https://github.com/Dato-Futbol/fif
 fifa_rankings_official_2025_first.json,excluded,https://inside.fifa.com/fifa-world-ranking/men,,FIFA terms do not grant general dataset redistribution.
 fifa_rankings_official_2026_latest.json,excluded,https://inside.fifa.com/fifa-world-ranking/men,,FIFA terms do not grant general dataset redistribution.
 fifa_rankings_official_snapshots.csv,excluded,https://inside.fifa.com/fifa-world-ranking/men,,Derived from excluded FIFA API responses.
-in_tournament_adjustment_events.csv,build,,uv run python build_in_tournament_adjustments.py,Generated after tournament results and match context are present.
-in_tournament_team_adjustments.csv,build,,uv run python build_in_tournament_adjustments.py,Generated with the adjustment event ledger.
-in_tournament_team_shape_profiles.csv,build,,uv run python build_in_tournament_shape_profiles.py,Generated after tournament results and adjustment events are present.
+in_tournament_adjustment_events.csv,build,,uv run python -m builders.build_in_tournament_adjustments,Generated after tournament results and match context are present.
+in_tournament_team_adjustments.csv,build,,uv run python -m builders.build_in_tournament_adjustments,Generated with the adjustment event ledger.
+in_tournament_team_shape_profiles.csv,build,,uv run python -m builders.build_in_tournament_shape_profiles,Generated after tournament results and adjustment events are present.
 international_results.csv,download,https://raw.githubusercontent.com/martj42/international_results/5a6198f46bac253791a56b7fe9ce22ec3030d7ff/results.csv,,Immutable CC0 source revision.
 match_shape_context.csv,repository,,,Project-authored annotations distributed under CC BY 4.0.
-open_meteo_geocoding_cache.json,build,,uv run python analyze_world_cup_heat_latitude.py,Rebuilt from Open-Meteo after required historical inputs are present.
-open_meteo_weather_cache.json,build,,uv run python analyze_world_cup_heat_latitude.py,Rebuilt with the geocoding cache.
+open_meteo_geocoding_cache.json,build,,uv run python -m builders.analyze_world_cup_heat_latitude,Rebuilt from Open-Meteo after required historical inputs are present.
+open_meteo_weather_cache.json,build,,uv run python -m builders.analyze_world_cup_heat_latitude,Rebuilt with the geocoding cache.
 realtime_team_context.csv,repository,,,Project-authored match context distributed under CC BY 4.0.
-style_matchup_edges.csv,build,,uv run python build_style_matchup_edges.py,Generated from historical style profiles.
+style_matchup_edges.csv,build,,uv run python -m builders.build_style_matchup_edges,Generated from historical style profiles.
 transfermarkt_world_cup_2026_values.csv,excluded,https://www.transfermarkt.us/world-cup/teilnehmer/pokalwettbewerb/FIWC,,Required user input; automated scraping is unsupported; follow the schema file.
 world_cup_2026_key_player_match_status.csv,repository,,,Project-authored match context distributed under CC BY 4.0.
 world_cup_2026_key_player_signals.csv,excluded,,,Required user input; contains market-value fields; follow the schema file.
 world_cup_2026_knockout_decisions.csv,repository,,,Expected to ship with the repository after project data licensing.
 world_cup_2026_result_sources.csv,repository,,,Project-authored factual source summaries distributed under CC BY 4.0.
 world_cup_2026_results.csv,repository,,,Expected to ship with the repository after project data licensing.
-world_cup_2026_squad_clubs.csv,build,https://en.wikipedia.org/w/index.php?title=2026_FIFA_World_Cup_squads&oldid=1359407494,uv run python fetch_wikipedia_squad_club_cohesion.py,Generated under CC BY-SA 4.0 from a fixed revision.
-world_cup_2026_team_club_cohesion.csv,build,https://en.wikipedia.org/w/index.php?title=2026_FIFA_World_Cup_squads&oldid=1359407494,uv run python fetch_wikipedia_squad_club_cohesion.py,Generated with the squad-club table from a fixed revision.
+world_cup_2026_squad_clubs.csv,build,https://en.wikipedia.org/w/index.php?title=2026_FIFA_World_Cup_squads&oldid=1359407494,uv run python -m builders.fetch_wikipedia_squad_club_cohesion,Generated under CC BY-SA 4.0 from a fixed revision.
+world_cup_2026_team_club_cohesion.csv,build,https://en.wikipedia.org/w/index.php?title=2026_FIFA_World_Cup_squads&oldid=1359407494,uv run python -m builders.fetch_wikipedia_squad_club_cohesion,Generated with the squad-club table from a fixed revision.
 world_cup_2026_team_discipline_profiles.csv,repository,,,Project-authored factual source summaries distributed under CC BY 4.0.

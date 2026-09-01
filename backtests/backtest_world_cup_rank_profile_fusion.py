@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
 
-from backtest_world_cup_fifa_ranking import (
+from backtests.backtest_world_cup_fifa_ranking import (
     DRAW_RANK_GAP,
     WORLD_CUPS,
     WorldCupMatch,

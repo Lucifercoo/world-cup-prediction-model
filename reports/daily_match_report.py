@@ -9,7 +9,7 @@ from datetime import date
 from pathlib import Path
 
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "output"
 PLAN_CSV = OUTPUT_DIR / "realtime_context_adjusted_plan.csv"
 LIVE_RANKING_CSV = OUTPUT_DIR / "world_cup_2026_live_rankings.csv"
@@ -172,7 +172,7 @@ def read_rows(match_date: str) -> list[dict[str, str]]:
 def run_prediction() -> None:
     subprocess.run(
         [sys.executable, str(ROOT / "realtime_context_adjusted_plan.py")],
-        cwd=ROOT.parent,
+        cwd=ROOT,
         check=True,
     )
 

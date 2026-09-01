@@ -4,7 +4,7 @@ import csv
 import sys
 from collections import Counter
 
-from backtest_world_cup_fifa_profile_scores import (
+from backtests.backtest_world_cup_fifa_profile_scores import (
     WORLD_CUPS,
     build_year_models,
     expected_goals,
@@ -12,7 +12,7 @@ from backtest_world_cup_fifa_profile_scores import (
     load_world_cup_matches,
     outcome_probabilities,
 )
-from backtest_world_cup_fifa_ranking import WorldCupMatch, stage_bucket
+from backtests.backtest_world_cup_fifa_ranking import WorldCupMatch, stage_bucket
 from predict_fifa_profile import (
     base_total_goal_bucket_from_expected,
     base_total_goal_bucket_probabilities_from_expected,

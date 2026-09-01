@@ -643,7 +643,7 @@ data/world_cup_2026_team_club_cohesion.csv
 生成命令：
 
 ```powershell
-uv run python .\fetch_wikipedia_squad_club_cohesion.py
+uv run python -m builders.fetch_wikipedia_squad_club_cohesion
 ```
 
 配合度规则：
@@ -733,7 +733,7 @@ output/realtime_context_cache/
 |---|---|
 | `output/team_profiles_2026.csv` | 赛前 10 年球队画像，提供基础风格和进攻/防守/大小球指标 |
 | `data/in_tournament_team_shape_profiles.csv` | 本届已完赛后的球队形态画像，只对下一场及以后生效 |
-| `data/style_matchup_edges.csv` | 历史风格标签对阵残差，由 `build_style_matchup_edges.py` 生成 |
+| `data/style_matchup_edges.csv` | 历史风格标签对阵残差，由 `builders/build_style_matchup_edges.py` 生成 |
 
 风格标签包括：`attack_high`、`defense_strong`、`defense_fragility`、`high_event`、`low_event`、`control`、`suppression`、`transition_route`，以及 `style_attacking`、`style_complete` 等基础风格标签。
 
@@ -907,13 +907,13 @@ data/in_tournament_adjustment_events.csv
 更新命令：
 
 ```powershell
-uv run python .\build_in_tournament_adjustments.py
+uv run python -m builders.build_in_tournament_adjustments
 ```
 
 默认只读取 `world_cup_2026_results.csv` 里尚未写入事件日志的新赛果。`--replay` 只用于首次迁移或修正旧比分：
 
 ```powershell
-uv run python .\build_in_tournament_adjustments.py --replay
+uv run python -m builders.build_in_tournament_adjustments --replay
 ```
 
 生成规则：
@@ -950,7 +950,7 @@ uv run python .\build_in_tournament_adjustments.py --replay
 有效性验证：
 
 ```powershell
-uv run python .\backtest_in_tournament_adjustments.py
+uv run python -m backtests.backtest_in_tournament_adjustments
 ```
 
 验证口径：
@@ -988,7 +988,7 @@ uv run python .\backtest_in_tournament_adjustments.py
 前 8 场赛后诊断命令：
 
 ```powershell
-uv run python .\evaluate_first8_realtime_context.py
+uv run python -m evaluation.evaluate_first8_realtime_context
 ```
 
 ## FIFA 排名基础数据
@@ -1018,7 +1018,7 @@ data/fifa_rankings_annual_start.csv
 然后才能生成年度快照：
 
 ```powershell
-uv run python .\build_fifa_annual_rankings.py
+uv run python -m builders.build_fifa_annual_rankings
 ```
 
 取数规则：
@@ -1047,7 +1047,7 @@ output/world_cup_2026_live_rankings.csv
 生成命令：
 
 ```powershell
-uv run python .\build_live_world_cup_rankings.py
+uv run python -m builders.build_live_world_cup_rankings
 ```
 
 规则：
