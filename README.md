@@ -183,5 +183,18 @@ or repackaging the datasets.
 
 This is an experimental forecasting system. Exact football scores are sparse
 events, and good aggregate calibration does not imply reliable single-match
-prediction. The outputs are not betting advice or a return guarantee.
+prediction. Historical evaluation does not guarantee future performance.
 
+## Disclaimer
+
+This project is for research, education, and reproducibility. Its predictions
+are not betting, financial, legal, or other professional advice and do not
+guarantee accuracy or returns. Users are responsible for complying with local
+law and the terms governing every third-party data source.
+
+The project is independent and is not affiliated with or endorsed by FIFA,
+Transfermarkt, Wikipedia, any football association, competition organizer,
+team, media organization, data provider, or betting operator. Names and
+trademarks belong to their respective owners.
+
+Read the complete [project disclaimer](DISCLAIMER.md).
