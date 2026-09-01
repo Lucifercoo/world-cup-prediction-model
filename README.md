@@ -8,6 +8,7 @@
 ![uv](https://img.shields.io/badge/package%20manager-uv-6E56CF)
 ![Evaluation](https://img.shields.io/badge/strict%20evaluation-79%20matches-00897B)
 ![License](https://img.shields.io/badge/code-MIT-2E7D32)
+[![CI](https://github.com/Lucifercoo/world-cup-prediction-model/actions/workflows/ci.yml/badge.svg)](https://github.com/Lucifercoo/world-cup-prediction-model/actions/workflows/ci.yml)
 
 </div>
 

@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  public-checkout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Install Python and dependencies
+        run: |
+          uv python install 3.11
+          uv sync --frozen --python 3.11
+
+      - name: Acquire public data
+        run: uv run python scripts/fetch_data.py
+
+      - name: Verify data checksums
+        run: uv run python scripts/verify_data_inventory.py
+
+      - name: Compile source
+        run: uv run python -m compileall -q .
+
+      - name: Build rolling team profiles
+        run: uv run python profiles.py
+
+      - name: Verify restricted-input boundary
+        run: uv run python scripts/verify_public_checkout.py

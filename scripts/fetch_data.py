@@ -146,15 +146,21 @@ def main() -> int:
 
     unavailable = [row for row in selected if row["mode"] in {"manual", "excluded"}]
     repository = [row for row in selected if row["mode"] == "repository"]
+    repository_failures: list[str] = []
     for row in repository:
         path = data_dir / row["file"]
         status = "OK" if path.exists() and matches_inventory(path, row) else "MISSING"
         print(f"{status:<8} {row['file']} (repository)")
+        if status == "MISSING":
+            repository_failures.append(row["file"])
     for row in unavailable:
         print(f"SKIP     {row['file']} ({row['mode']}): {row['notes']}")
     if build_rows and not args.build:
         print(f"SKIP     {len(build_rows)} build-mode files; pass --build to run their commands.")
 
+    if repository_failures:
+        print(f"ERROR: missing or mismatched repository data: {repository_failures}", file=sys.stderr)
+        return 1
     if selected_names and unavailable:
         return 2
     return 0
