@@ -5,9 +5,25 @@ records, and generated state. Source code licensing does not override the
 terms attached to those inputs. The repository therefore treats every file in
 `data/` as private by default and publishes it only after a file-level review.
 
-The authoritative review is [`DATA_INVENTORY.csv`](DATA_INVENTORY.csv). Run
-`uv run python scripts/verify_data_inventory.py` to compare local files with
-the recorded size and SHA-256 values.
+The authoritative review is [`DATA_INVENTORY.csv`](DATA_INVENTORY.csv), while
+[`DATA_FETCH.csv`](DATA_FETCH.csv) records the machine-readable acquisition
+method. List the available methods with:
+
+```powershell
+uv run python scripts/fetch_data.py --list
+```
+
+Download every immutable and redistributable source currently supported:
+
+```powershell
+uv run python scripts/fetch_data.py
+```
+
+After manually supplying permitted prerequisites, generated datasets can be
+built with `uv run python scripts/fetch_data.py --build`. Every downloaded file
+is checked against the recorded size and SHA-256 before it replaces a local
+file. Run `uv run python scripts/verify_data_inventory.py` for a full local
+inventory check.
 
 ## Publication decisions
 

@@ -115,8 +115,14 @@ information available at kickoff.
 Requirements: Python 3.11 or newer and
 [`uv`](https://docs.astral.sh/uv/).
 
+The fetch command downloads only immutable data cleared for automated
+redistribution. Run it with `--list` and follow
+[`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) for manual or generated inputs
+before running models that depend on them.
+
 ```powershell
 uv sync
+uv run python .\scripts\fetch_data.py
 uv run python .\profiles.py
 uv run python .\build_live_world_cup_rankings.py
 uv run python .\predict_fifa_profile.py
