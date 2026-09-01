@@ -4,18 +4,26 @@ import csv
 import sys
 from datetime import date
 
-from predict import Match, OUTPUT_DIR
+from predict import OUTPUT_DIR, Match
 from predict_fifa_profile import (
-    load_fifa_rankings,
     load_club_cohesion,
+    load_fifa_rankings,
     load_market_values,
     load_profiles,
     predict_match,
     profile_baselines,
     total_goal_bucket,
 )
-from realtime_context_adjusted_plan import apply_context, load_completed_matches, load_context, load_match_shapes
-
+from prediction_rules import score_outcome
+from realtime_context_adjusted_plan import (
+    apply_context,
+    load_completed_matches,
+    load_context,
+    load_key_player_match_statuses,
+    load_key_player_signals,
+    load_match_shapes,
+    load_team_shape_profiles,
+)
 
 EVAL_CSV = OUTPUT_DIR / "first8_realtime_context_eval.csv"
 EVAL_MD = OUTPUT_DIR / "first8_realtime_context_eval.md"
@@ -30,14 +38,6 @@ FIRST8 = [
     (Match("C", date(2026, 6, 13), "21:00", "Haiti", "Scotland", "Foxborough"), (0, 1)),
     (Match("D", date(2026, 6, 14), "00:00", "Australia", "Turkey", "Vancouver"), (2, 0)),
 ]
-
-
-def outcome(goals_a: int, goals_b: int) -> str:
-    if goals_a > goals_b:
-        return "A"
-    if goals_a < goals_b:
-        return "B"
-    return "D"
 
 
 def score_text(scores: list[str]) -> str:
@@ -56,11 +56,23 @@ def evaluate_rows() -> list[dict]:
     baselines = profile_baselines(list(profiles.values()))
     contexts = load_context()
     shapes = load_match_shapes()
+    team_shape_profiles = load_team_shape_profiles()
+    key_player_signals = load_key_player_signals()
+    key_player_statuses = load_key_player_match_statuses()
     completed_matches = load_completed_matches()
     rows: list[dict] = []
     for match, actual in FIRST8:
         base = predict_match(match, rankings, profiles, baselines, market_values, club_cohesion)
-        adjusted = apply_context(base, contexts, shapes, completed_matches)
+        adjusted = apply_context(
+            base,
+            contexts,
+            shapes,
+            team_shape_profiles,
+            key_player_signals,
+            key_player_statuses,
+            market_values,
+            completed_matches,
+        )
         actual_score = f"{actual[0]}-{actual[1]}"
         actual_bucket = total_goal_bucket(actual[0] + actual[1])
 
@@ -79,7 +91,7 @@ def evaluate_rows() -> list[dict]:
         adjusted_total_hit = adjusted["adjusted_total_goal_bucket"] == actual_bucket
         base_score_hit = actual_score in base_scores
         adjusted_score_hit = actual_score in adjusted_scores
-        wdl_hit = base["predicted_outcome"] == outcome(*actual)
+        wdl_hit = base["predicted_outcome"] == score_outcome(*actual)
         rows.append(
             {
                 "date_bjt": base["date_bjt"],

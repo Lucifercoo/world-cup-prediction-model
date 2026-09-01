@@ -8,9 +8,14 @@ import pytest
 
 import realtime_context_adjusted_plan as realtime_plan
 from predict_fifa_profile import (
+    total_goal_bucket_from_expected,
+)
+from prediction_rules import (
+    match_key,
+    parse_score,
+    parse_top2_total_goal_buckets,
     score_outcome,
     total_goal_bucket,
-    total_goal_bucket_from_expected,
 )
 from realtime_context_adjusted_plan import (
     TeamContext,
@@ -112,6 +117,24 @@ def test_score_outcome_contract() -> None:
     assert score_outcome(2, 1) == "A"
     assert score_outcome(1, 1) == "D"
     assert score_outcome(0, 2) == "B"
+
+
+def test_score_parsing_rejects_noncanonical_values() -> None:
+    assert parse_score("3-1") == (3, 1)
+    for value in ("3:1", "3-1 extra", " 3-1", "3--1"):
+        with pytest.raises(ValueError, match="invalid score"):
+            parse_score(value)
+
+
+def test_match_key_and_top2_bucket_contract() -> None:
+    row = base_prediction_row()
+    assert match_key(row) == ("2026-06-12", "00:00", "Alpha", "Beta")
+    assert parse_top2_total_goal_buckets(
+        "2-3球 48.0%; 4-5球 31.0%; 0-1球 20.0%",
+        "2-3球",
+    ) == {"2-3球", "4-5球"}
+    with pytest.raises(ValueError, match="unknown total-goal bucket"):
+        parse_top2_total_goal_buckets("未知桶 50.0%", "2-3球")
 
 
 def test_total_goal_bucket_boundaries() -> None:

@@ -4,19 +4,20 @@ import csv
 import statistics
 from pathlib import Path
 
-from backtests import backtest_in_tournament_adjustments as inplay
 from backtests import backtest_world_cup_fifa_profile_scores as history
-from backtests.backtest_world_cup_fifa_ranking import WORLD_CUPS, load_world_cup_matches, outcome
+from backtests.backtest_world_cup_fifa_ranking import (
+    WORLD_CUPS,
+    load_world_cup_matches,
+    outcome,
+)
 from predict_fifa_profile import (
     best_score_inside_total_goal_buckets,
     outcome_adjusted_scores,
     predicted_outcome_from_probabilities,
-    score_outcome,
     select_upset_or_compression_score,
     top_total_goal_buckets,
-    total_goal_bucket,
 )
-
+from prediction_rules import parse_score, score_outcome
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "output"
@@ -25,11 +26,6 @@ CURRENT_CSV = OUTPUT_DIR / "upset_score_2026_finished.csv"
 SUMMARY_MD = OUTPUT_DIR / "upset_score_evaluation_summary.md"
 REALTIME_PLAN_CSV = OUTPUT_DIR / "realtime_context_adjusted_plan.csv"
 RESULTS_2026_CSV = ROOT / "data" / "world_cup_2026_results.csv"
-
-
-def parse_score(value: str) -> tuple[int, int]:
-    home, away = value.split("-", maxsplit=1)
-    return int(home), int(away)
 
 
 def score_distance(actual: str, predicted: str) -> int:

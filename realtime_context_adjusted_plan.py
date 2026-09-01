@@ -26,13 +26,13 @@ from predict_fifa_profile import (
     poisson_pmf,
     select_recommended_score,
     select_score_by_total_and_margin,
-    total_goal_bucket,
     total_goal_bucket_probabilities_from_expected,
     total_goal_probability_lookup,
 )
 from predict_fifa_profile import (
     second_bucket_from_expected_total_goals as profile_second_bucket_from_expected_total_goals,
 )
+from prediction_rules import parse_score, score_outcome, total_goal_bucket
 from reports import realtime_output
 from style_matchups import (
     StyleMatchupEffect,
@@ -1283,13 +1283,6 @@ def group_stage_context(row: dict, completed_matches: list[CompletedMatch]) -> G
     )
 
 
-def parse_score(value: str) -> tuple[int, int]:
-    match = re.match(r"^(\d+)-(\d+)$", value)
-    if not match:
-        raise ValueError(f"invalid score: {value}")
-    return int(match.group(1)), int(match.group(2))
-
-
 def format_score(cell: tuple[int, int, float]) -> str:
     return f"{cell[0]}-{cell[1]}"
 
@@ -2114,14 +2107,6 @@ def market_value_micro_adjust(
             else:
                 market_a = max(0, market_a - 1)
     return f"{market_a}-{market_b}"
-
-
-def score_outcome(goals_a: int, goals_b: int) -> str:
-    if goals_a > goals_b:
-        return "A"
-    if goals_b > goals_a:
-        return "B"
-    return "D"
 
 
 def legal_margin_for_total(total_goals: int, raw_margin: float, outcome: str) -> int:

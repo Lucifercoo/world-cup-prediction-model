@@ -6,6 +6,14 @@ import statistics
 from datetime import datetime, timezone
 from pathlib import Path
 
+from prediction_rules import (
+    format_score,
+    match_key,
+    parse_score,
+    parse_top2_total_goal_buckets,
+    score_outcome,
+    total_goal_bucket,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "output"
@@ -41,33 +49,6 @@ def parse_match_bjt(date_text: str, time_text: str) -> datetime:
     return datetime.strptime(f"{date_text} {time_text} +0800", "%Y-%m-%d %H:%M %z").astimezone(timezone.utc)
 
 
-def parse_score(value: str) -> tuple[int, int]:
-    home, away = value.split("-", maxsplit=1)
-    return int(home), int(away)
-
-
-def format_score(home: int, away: int) -> str:
-    return f"{home}-{away}"
-
-
-def outcome(score: tuple[int, int]) -> str:
-    if score[0] > score[1]:
-        return "A"
-    if score[1] > score[0]:
-        return "B"
-    return "D"
-
-
-def total_bucket(total: int) -> str:
-    if total <= 1:
-        return "0-1球"
-    if total <= 3:
-        return "2-3球"
-    if total <= 5:
-        return "4-5球"
-    return "6-8球"
-
-
 def score_deviation(actual: str, predicted: str) -> float:
     actual_home, actual_away = parse_score(actual)
     predicted_home, predicted_away = parse_score(predicted)
@@ -94,15 +75,11 @@ def pct(value: float) -> str:
     return f"{value:.1%}"
 
 
-def knockout_decision_key(row: dict) -> tuple[str, str, str, str]:
-    return row["date_bjt"], row["time_bjt"], row["team_a"], row["team_b"]
-
-
 def load_knockout_decisions() -> dict[tuple[str, str, str, str], dict]:
     decisions: dict[tuple[str, str, str, str], dict] = {}
     with KNOCKOUT_DECISIONS_CSV.open(encoding="utf-8-sig", newline="") as fh:
         for row in csv.DictReader(fh):
-            decisions[knockout_decision_key(row)] = row
+            decisions[match_key(row)] = row
     return decisions
 
 
@@ -116,7 +93,7 @@ def load_results() -> list[dict]:
             evaluation_phase = "final"
             decision_method = ""
             advancing_team = ""
-            decision = decisions.get(knockout_decision_key(row))
+            decision = decisions.get(match_key(row))
             if decision is not None:
                 regulation_score = format_score(
                     int(decision["regulation_goals_a"]),
@@ -163,13 +140,9 @@ def load_cache_runs() -> list[dict]:
     return sorted(runs, key=lambda item: item["created_at_utc"])
 
 
-def row_key(row: dict) -> tuple[str, str, str, str]:
-    return row["date_bjt"], row["time_bjt"], row["team_a"], row["team_b"]
-
-
 def load_plan_rows(path: Path) -> dict[tuple[str, str, str, str], dict]:
     with path.open(encoding="utf-8-sig", newline="") as fh:
-        return {row_key(row): row for row in csv.DictReader(fh)}
+        return {match_key(row): row for row in csv.DictReader(fh)}
 
 
 def cache_for_match(result: dict, runs: list[dict]) -> tuple[dict, dict] | None:
@@ -180,17 +153,6 @@ def cache_for_match(result: dict, runs: list[dict]) -> tuple[dict, dict] | None:
         if key in rows:
             return run, rows[key]
     return None
-
-
-def top2_buckets(value: str, primary: str) -> set[str]:
-    buckets = {primary}
-    for part in value.split(";"):
-        bucket = part.strip().split(" ", maxsplit=1)[0]
-        if bucket:
-            buckets.add(bucket)
-        if len(buckets) >= 2:
-            break
-    return buckets
 
 
 def parse_bucket_probabilities(value: str) -> list[tuple[str, float]]:
@@ -225,12 +187,14 @@ def reweighted_bucket_hit(row: dict, factor_2_3: float) -> bool:
 def evaluated_row(result: dict, cache_run: dict, prediction: dict) -> dict:
     actual_score = result["actual_score"]
     actual = parse_score(actual_score)
-    actual_outcome = outcome(actual)
-    actual_bucket = total_bucket(sum(actual))
+    actual_outcome = score_outcome(*actual)
+    actual_bucket = total_goal_bucket(sum(actual))
     final_score = result["final_score"]
-    final_outcome = outcome(parse_score(final_score))
+    final_outcome = score_outcome(*parse_score(final_score))
     selected_bucket = prediction["adjusted_total_goal_bucket"]
-    selected_buckets = top2_buckets(prediction["adjusted_total_goals_top2"], selected_bucket)
+    selected_buckets = parse_top2_total_goal_buckets(
+        prediction["adjusted_total_goals_top2"], selected_bucket
+    )
     output = {
         "date_bjt": result["date_bjt"],
         "time_bjt": result["time_bjt"],
@@ -273,18 +237,18 @@ def evaluated_row(result: dict, cache_run: dict, prediction: dict) -> dict:
             output[f"{label}_deviation"] = ""
             continue
         score_tuple = parse_score(score)
-        score_bucket = total_bucket(sum(score_tuple))
+        score_bucket = total_goal_bucket(sum(score_tuple))
         deviation = score_deviation(actual_score, score)
         deviations.append(deviation)
         output[f"{label}_score"] = score
         output[f"{label}_exact_hit"] = str(score == actual_score).upper()
-        output[f"{label}_outcome_hit"] = str(outcome(score_tuple) == actual_outcome).upper()
-        output[f"{label}_final_outcome_hit"] = str(outcome(score_tuple) == final_outcome).upper()
+        output[f"{label}_outcome_hit"] = str(score_outcome(*score_tuple) == actual_outcome).upper()
+        output[f"{label}_final_outcome_hit"] = str(score_outcome(*score_tuple) == final_outcome).upper()
         output[f"{label}_bucket_hit"] = str(score_bucket == actual_bucket).upper()
         output[f"{label}_deviation"] = f"{deviation:.6f}"
         exact_hit = exact_hit or score == actual_score
-        score_outcome_hit = score_outcome_hit or outcome(score_tuple) == actual_outcome
-        final_score_outcome_hit = final_score_outcome_hit or outcome(score_tuple) == final_outcome
+        score_outcome_hit = score_outcome_hit or score_outcome(*score_tuple) == actual_outcome
+        final_score_outcome_hit = final_score_outcome_hit or score_outcome(*score_tuple) == final_outcome
         bucket_hit = bucket_hit or score_bucket == actual_bucket
     output["any_score_exact_hit"] = str(exact_hit).upper()
     output["any_score_outcome_hit"] = str(score_outcome_hit).upper()

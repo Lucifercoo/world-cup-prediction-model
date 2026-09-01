@@ -4,8 +4,8 @@ import csv
 import re
 import sys
 
+from prediction_rules import parse_score, total_goal_bucket
 from profiles import OUTPUT_DIR
-
 
 PREDICTIONS_CSV = OUTPUT_DIR / "group_score_predictions_fifa_profile.csv"
 ADJUSTED_PREDICTIONS_CSV = OUTPUT_DIR / "realtime_context_adjusted_plan.csv"
@@ -38,18 +38,8 @@ def parse_top_scores(value: str) -> list[tuple[str, float]]:
 
 
 def score_total_goal_bucket(score: str) -> str:
-    home, away = (int(part) for part in score.split("-"))
+    home, away = parse_score(score)
     return total_goal_bucket(home + away)
-
-
-def total_goal_bucket(total_goals: int) -> str:
-    if total_goals <= 1:
-        return "0-1球"
-    if total_goals <= 3:
-        return "2-3球"
-    if total_goals <= 5:
-        return "4-5球"
-    return "6-8球"
 
 
 def target_item_count(row: dict) -> int:

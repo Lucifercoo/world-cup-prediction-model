@@ -8,14 +8,21 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from builders.build_fifa_annual_rankings import normalized_team
-from predict import DATA_DIR, OUTPUT_DIR, Match, canonical_team, host_multiplier, schedule
+from predict import (
+    DATA_DIR,
+    OUTPUT_DIR,
+    Match,
+    canonical_team,
+    host_multiplier,
+    schedule,
+)
+from prediction_rules import TOTAL_GOAL_BUCKET_LABELS, score_outcome, total_goal_bucket
 from style_matchups import (
     apply_style_influence_gate,
     profile_style_features,
     style_influence_factor,
     style_matchup_effect,
 )
-
 
 FIFA_RANKING_CSV = DATA_DIR / "fifa_rankings_annual_start.csv"
 LIVE_RANKING_CSV = OUTPUT_DIR / "world_cup_2026_live_rankings.csv"
@@ -39,7 +46,6 @@ DRAW_BASE = 0.24
 DRAW_CLOSE_BONUS = 0.08
 DRAW_STYLE_BONUS = 0.05
 CLOSE_OUTCOME_MARGIN = 0.08
-TOTAL_GOAL_BUCKET_LABELS = ("0-1球", "2-3球", "4-5球", "6-8球")
 BASE_TOTAL_GOAL_BUCKET_PROBABILITIES = {
     "0-1球": 0.25,
     "2-3球": 0.34,
@@ -1120,16 +1126,6 @@ def top_total_goals(cells: list[tuple[int, int, float]]) -> list[tuple[int, floa
     return sorted(totals.items(), key=lambda item: item[1], reverse=True)
 
 
-def total_goal_bucket(total_goals: int) -> str:
-    if total_goals <= 1:
-        return "0-1球"
-    if total_goals <= 3:
-        return "2-3球"
-    if total_goals <= 5:
-        return "4-5球"
-    return "6-8球"
-
-
 def total_goal_bucket_from_expected(expected_total_goals: float) -> str:
     if expected_total_goals < 1.5:
         return "0-1球"
@@ -1422,14 +1418,6 @@ def total_goal_bucket_probabilities(
 
 def total_goal_probability_lookup(cells: list[tuple[int, int, float]]) -> dict[int, float]:
     return dict(top_total_goals(cells))
-
-
-def score_outcome(goals_a: int, goals_b: int) -> str:
-    if goals_a > goals_b:
-        return "A"
-    if goals_b > goals_a:
-        return "B"
-    return "D"
 
 
 def outcome_alias(value: str) -> str:
