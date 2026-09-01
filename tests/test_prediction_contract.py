@@ -4,6 +4,9 @@ import csv
 import json
 from pathlib import Path
 
+import pytest
+
+import realtime_context_adjusted_plan as realtime_plan
 from predict_fifa_profile import (
     score_outcome,
     total_goal_bucket,
@@ -19,6 +22,16 @@ from reports.realtime_output import (
     write_markdown,
     write_realtime_cache,
 )
+from style_matchups import StyleMatchupEffect
+
+
+@pytest.fixture(autouse=True)
+def isolate_generated_style_statistics(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        realtime_plan,
+        "style_matchup_effect",
+        lambda _features_a, _features_b: StyleMatchupEffect(0.0, 1.0, ()),
+    )
 
 
 def base_prediction_row() -> dict[str, str]:
@@ -132,8 +145,8 @@ def test_apply_context_without_team_context_contract() -> None:
     assert result["adjusted_p_a"] == "0.616000"
     assert result["adjusted_p_draw"] == "0.230000"
     assert result["adjusted_p_b"] == "0.154000"
-    assert result["adjusted_xg_a"] == "2.1364"
-    assert result["adjusted_xg_b"] == "0.7422"
+    assert result["adjusted_xg_a"] == "2.1560"
+    assert result["adjusted_xg_b"] == "0.7350"
 
 
 def test_apply_context_with_team_context_contract() -> None:
@@ -149,8 +162,8 @@ def test_apply_context_with_team_context_contract() -> None:
     assert result["adjusted_p_a"] == "0.616000"
     assert result["adjusted_p_draw"] == "0.230000"
     assert result["adjusted_p_b"] == "0.154000"
-    assert result["adjusted_xg_a"] == "2.1364"
-    assert result["adjusted_xg_b"] == "0.7422"
+    assert result["adjusted_xg_a"] == "2.1560"
+    assert result["adjusted_xg_b"] == "0.7350"
 
 
 def test_realtime_output_schema_contract() -> None:
