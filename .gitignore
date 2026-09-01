@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.log
+
+# Large, generated, or temporary runtime artifacts.
+output/realtime_context_cache/
+output/daily_reports/
+output/strict_asof_backup_*/
+output/strong_favorite_low_bucket_grid/
+output/*baseline_before*
+output/diagnostic_*
+

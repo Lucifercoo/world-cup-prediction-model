@@ -1,0 +1,14 @@
+[project]
+name = "world-cup-prediction-model"
+version = "0.1.0"
+description = "Time-aware World Cup outcome, total-goal, and score forecasting experiments."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "beautifulsoup4>=4.12.3",
+]
+
+[dependency-groups]
+dev = [
+    "matplotlib>=3.10.0",
+]
