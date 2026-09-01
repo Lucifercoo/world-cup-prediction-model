@@ -43,6 +43,9 @@ jobs:
       - name: Run tests
         run: uv run pytest -q
 
+      - name: Check command entry point
+        run: uv run python -m wc_model experiment list
+
       - name: Build rolling team profiles
         run: uv run python profiles.py
 

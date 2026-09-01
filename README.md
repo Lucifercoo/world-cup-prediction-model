@@ -125,18 +125,29 @@ before running models that depend on them.
 ```powershell
 uv sync
 uv run pytest -q
-uv run python .\scripts\fetch_data.py
-uv run python .\profiles.py
-uv run python -m builders.build_live_world_cup_rankings
-uv run python .\predict_fifa_profile.py
-uv run python .\realtime_context_adjusted_plan.py
+uv run python -m wc_model data
 ```
+
+Supply the three restricted inputs listed in
+[`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md), then run the complete pipeline:
+
+```powershell
+uv run python -m wc_model build
+```
+
+The build command generates rolling profiles, live rankings, in-tournament
+state, style edges, base predictions, realtime predictions, the cache snapshot,
+and betting-plan output in dependency order. Use `--replay` only after correcting
+historical tournament results; normal runs update state incrementally.
 
 Generate a dated Markdown report:
 
 ```powershell
-uv run python -m reports.daily_match_report 2026-07-20 --no-refresh
+uv run python -m wc_model report 2026-07-20
 ```
+
+Reports rebuild the full prediction pipeline by default. Pass `--no-build` only
+when intentionally rendering an existing prediction snapshot.
 
 Rebuild the README statistics image from the checked-in evaluation data:
 
@@ -147,12 +158,23 @@ uv run python .\scripts\generate_readme_stats.py
 Strict evaluation requires a local `output/realtime_context_cache/` archive:
 
 ```powershell
-uv run python -m evaluation.evaluate_finished_from_realtime_cache
+uv run python -m wc_model evaluate
 ```
 
 The full runtime cache is about 1.9 GB and is not committed. The derived
 match-level evaluation CSV is included so the published figures remain
 inspectable and the chart remains reproducible.
+
+List or run isolated model experiments through the same entry point:
+
+```powershell
+uv run python -m wc_model experiment list
+uv run python -m wc_model experiment run low-block-effect
+```
+
+Experiment purposes and prerequisites are documented in
+[`docs/EXPERIMENTS.md`](docs/EXPERIMENTS.md). Experiment outputs do not alter the
+formal model unless a separately reviewed model change adopts their result.
 
 ## Evaluation Rules
 
@@ -182,6 +204,8 @@ retrofitting. More detail is available in [the design document](docs/DESIGN.md).
 |-- output/        # Selected predictions and evaluation results
 |-- reports/       # Daily Markdown report generation
 |-- scripts/       # Reproducible documentation utilities
+|-- wc_model.py    # Unified project command entry point
+|-- prediction_rules.py # Shared score and total-goal contracts
 |-- predict*.py    # Base and profile prediction models
 |-- realtime_*.py  # Pre-match context adjustment and cache generation
 `-- profiles.py    # Rolling team profile generation
