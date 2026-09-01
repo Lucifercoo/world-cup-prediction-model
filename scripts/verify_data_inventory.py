@@ -39,11 +39,12 @@ def main() -> int:
         rows = list(csv.DictReader(handle))
 
     inventory_names = {row["file"] for row in rows}
+    non_data_files = {"README.md"}
     if DATA_DIR.exists():
         unexpected = sorted(
             path.name
             for path in DATA_DIR.iterdir()
-            if path.is_file() and path.name not in inventory_names
+            if path.is_file() and path.name not in inventory_names and path.name not in non_data_files
         )
         failures.extend(f"unexpected file: {name}" for name in unexpected)
 

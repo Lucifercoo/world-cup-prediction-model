@@ -1,0 +1,7 @@
+date_bjt,time_bjt,team_a,team_b,regulation_goals_a,regulation_goals_b,final_goals_a,final_goals_b,advancing_team,decision_method,notes
+2026-07-04,02:00,Australia,Egypt,1,1,1,1,Egypt,penalties,Egypt advanced on penalties after a 1-1 regulation draw.
+2026-07-04,06:00,Argentina,Cape Verde,1,1,1,1,Argentina,extra_time,Argentina advanced after extra time after a 1-1 regulation draw; final score unavailable in the local source ledger.
+2026-07-08,04:00,Switzerland,Colombia,0,0,0,0,Switzerland,penalties,Switzerland advanced 4-3 on penalties after a 0-0 draw through extra time.
+2026-07-12,05:00,Norway,England,1,1,1,2,England,extra_time,England beat Norway 2-1 after extra time after a 1-1 regulation draw.
+2026-07-12,09:00,Argentina,Switzerland,1,1,3,1,Argentina,extra_time,Argentina beat Switzerland 3-1 after extra time after a 1-1 regulation draw.
+2026-07-20,03:00,Spain,Argentina,0,0,1,0,Spain,extra_time,Spain beat Argentina 1-0 after extra time after a 0-0 regulation draw.

@@ -570,10 +570,11 @@ flowchart TD
 data/transfermarkt_world_cup_2026_values.csv
 ```
 
-生成命令：
+该文件包含受上游条款约束的第三方数据，公开仓库不提供自动抓取器或原始文件。开发者必须按
+`docs/DATA_FETCH.csv` 自行取得合法数据并保持相同字段结构。
 
 ```powershell
-uv run python .\fetch_transfermarkt_world_cup_values.py
+uv run python .\scripts\verify_data_inventory.py
 ```
 
 身价现在有两种用途：
@@ -1013,10 +1014,10 @@ data/fifa_rankings_official_snapshots.csv
 data/fifa_rankings_annual_start.csv
 ```
 
-生成命令：
+这些原始排名文件不随公开仓库分发。开发者必须按 `docs/DATA_FETCH.csv` 和上游条款自行提供，
+然后才能生成年度快照：
 
 ```powershell
-uv run python .\fetch_fifa_official_rankings.py
 uv run python .\build_fifa_annual_rankings.py
 ```
 

@@ -7,6 +7,7 @@
 ![Python](https://img.shields.io/badge/Python-%3E%3D3.11-3776AB?logo=python&logoColor=white)
 ![uv](https://img.shields.io/badge/package%20manager-uv-6E56CF)
 ![Evaluation](https://img.shields.io/badge/strict%20evaluation-79%20matches-00897B)
+![License](https://img.shields.io/badge/code-MIT-2E7D32)
 
 </div>
 
@@ -204,3 +205,9 @@ team, media organization, data provider, or betting operator. Names and
 trademarks belong to their respective owners.
 
 Read the complete [project disclaimer](DISCLAIMER.md).
+
+## License
+
+Source code is available under the [MIT License](LICENSE). Project-authored
+datasets use CC BY 4.0, while third-party datasets retain their original terms.
+See [data licensing](DATA_LICENSES.md) for file-level details.

@@ -60,3 +60,15 @@ inventory check.
 5. Never replace unavailable production data with mock values.
 
 This inventory is a conservative engineering review, not legal advice.
+
+## Restricted input schemas
+
+The repository provides header-only schemas for required inputs that cannot be
+redistributed:
+
+- `schemas/fifa_rankings_annual_start.csv`
+- `schemas/transfermarkt_world_cup_2026_values.csv`
+- `schemas/world_cup_2026_key_player_signals.csv`
+
+Place legally obtained files with those names in `data/`. Empty schemas are
+not valid model inputs and are never used as fallback data.
