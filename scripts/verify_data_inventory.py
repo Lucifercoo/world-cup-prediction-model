@@ -1,0 +1,83 @@
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+INVENTORY = ROOT / "docs" / "DATA_INVENTORY.csv"
+DATA_DIR = ROOT / "data"
+
+
+def sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Verify local data against the reviewed inventory.")
+    parser.add_argument(
+        "--require-all",
+        action="store_true",
+        help="Treat inventory entries missing from data/ as failures.",
+    )
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    failures: list[str] = []
+    missing: list[str] = []
+    checked = 0
+
+    with INVENTORY.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+
+    inventory_names = {row["file"] for row in rows}
+    if DATA_DIR.exists():
+        unexpected = sorted(
+            path.name
+            for path in DATA_DIR.iterdir()
+            if path.is_file() and path.name not in inventory_names
+        )
+        failures.extend(f"unexpected file: {name}" for name in unexpected)
+
+    for row in rows:
+        path = DATA_DIR / row["file"]
+        if not path.exists():
+            missing.append(row["file"])
+            continue
+
+        checked += 1
+        actual_size = path.stat().st_size
+        expected_size = int(row["size_bytes"])
+        if actual_size != expected_size:
+            failures.append(f"size mismatch: {row['file']} ({actual_size} != {expected_size})")
+            continue
+
+        actual_hash = sha256(path)
+        if actual_hash != row["sha256"]:
+            failures.append(f"hash mismatch: {row['file']}")
+
+    if args.require_all:
+        failures.extend(f"missing file: {name}" for name in missing)
+
+    print(f"Inventory entries: {len(rows)}")
+    print(f"Checked local files: {checked}")
+    print(f"Missing local files: {len(missing)}")
+    if failures:
+        for failure in failures:
+            print(f"ERROR: {failure}")
+        return 1
+
+    print("Inventory verification passed.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -6,6 +6,10 @@ __pycache__/
 .mypy_cache/
 *.log
 
+# Data is private-by-default. Public datasets are force-added only after the
+# source and redistribution review recorded in docs/DATA_INVENTORY.csv.
+data/*
+
 # Large, generated, or temporary runtime artifacts.
 output/realtime_context_cache/
 output/daily_reports/
@@ -13,4 +17,3 @@ output/strict_asof_backup_*/
 output/strong_favorite_low_bucket_grid/
 output/*baseline_before*
 output/diagnostic_*
-

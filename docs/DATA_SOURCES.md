@@ -1,19 +1,46 @@
-# Data Sources
+# Data Sources and Publication Policy
 
-This project combines public match results, FIFA ranking snapshots, squad market
-values, squad club affiliations, weather context, and manually reviewed match
-context. Source-specific terms still apply to every copied or generated dataset.
+The model uses third-party datasets, API responses, project-authored match
+records, and generated state. Source code licensing does not override the
+terms attached to those inputs. The repository therefore treats every file in
+`data/` as private by default and publishes it only after a file-level review.
 
-| Dataset | Purpose | Upstream source |
-| --- | --- | --- |
-| `international_results.csv` | Rolling team profiles and historical backtests | Public international match results dataset |
-| `fifa_rankings_*.csv/json` | FIFA ranking snapshots | FIFA and archived ranking datasets |
-| `transfermarkt_world_cup_2026_values.csv` | Squad-value signal | Transfermarkt public pages |
-| `world_cup_2026_squad_clubs.csv` | Club concentration signal | Public squad lists and Wikipedia |
-| `open_meteo_*.json` | Weather and geocoding cache | Open-Meteo |
-| `world_cup_2026_result_sources.csv` | Result provenance | Linked public reports |
+The authoritative review is [`DATA_INVENTORY.csv`](DATA_INVENTORY.csv). Run
+`uv run python scripts/verify_data_inventory.py` to compare local files with
+the recorded size and SHA-256 values.
 
-Before publishing a release, verify whether each upstream source permits
-redistribution. Files that cannot be redistributed should be replaced by fetch
-instructions or excluded from Git while preserving their schema.
+## Publication decisions
 
+| Decision | Meaning |
+| --- | --- |
+| `include` | May be published with the stated attribution and license notice. |
+| `include-project` | Project-authored facts, labels, or generated state; publish under the eventual project data license. |
+| `rebuild` | Do not commit the local cache; document a reproducible fetch/build step. |
+| `exclude` | Do not publish the local file because redistribution is prohibited or unsupported. |
+| `review` | Keep private until provenance or copied text has been checked manually. |
+
+## Upstream sources
+
+| Source | Local use | License or terms | Current decision |
+| --- | --- | --- | --- |
+| [martj42/international_results](https://github.com/martj42/international_results) | Historical international results | CC0-1.0 | Include with provenance. |
+| [cashncarry/fifaworldranking](https://www.kaggle.com/datasets/cashncarry/fifaworldranking) | Historical FIFA ranking export | CC0 on the dataset page | Review the local file's provenance before inclusion. |
+| [Dato-Futbol/fifa-ranking](https://github.com/Dato-Futbol/fifa-ranking) | Historical FIFA points | No repository license | Exclude the copied data; keep source instructions only. |
+| [FIFA World Ranking](https://inside.fifa.com/fifa-world-ranking/men) | 2025/2026 snapshots | [FIFA Terms of Service](https://legal.fifa.com/terms-of-service) do not grant general dataset redistribution | Exclude raw and derived snapshots. |
+| [Open-Meteo](https://open-meteo.com/) | Historical weather and geocoding | [CC BY 4.0 data; API plan limits apply](https://open-meteo.com/en/terms) | Rebuild caches and attribute Open-Meteo. |
+| [Wikipedia: 2026 FIFA World Cup squads](https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_squads) | Player-club affiliations | CC BY-SA 4.0 | Include only with article attribution and share-alike notice. |
+| [Transfermarkt](https://www.transfermarkt.us/world-cup/teilnehmer/pokalwettbewerb/FIWC) | Squad market values | [Terms prohibit automated scraping/copying](https://www.transfermarkt.us/intern/anb) | Exclude scraped values and the automated-fetch workflow from a public release. |
+
+## Reproducibility strategy
+
+1. Commit redistributable source data with source, license, retrieval date, and
+   checksum.
+2. Commit project-authored match inputs and generated state only after checking
+   that notes summarize facts rather than copy article prose.
+3. Replace restricted files with schemas and user-supplied input paths. A clean
+   checkout must fail clearly when a required restricted input is missing.
+4. Keep API caches out of Git. Builders must record endpoint, request date,
+   parameters, and attribution in their generated manifest.
+5. Never replace unavailable production data with mock values.
+
+This inventory is a conservative engineering review, not legal advice.
