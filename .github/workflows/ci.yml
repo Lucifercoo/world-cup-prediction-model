@@ -40,6 +40,9 @@ jobs:
       - name: Compile source
         run: uv run python -m compileall -q .
 
+      - name: Run tests
+        run: uv run pytest -q
+
       - name: Build rolling team profiles
         run: uv run python profiles.py
 

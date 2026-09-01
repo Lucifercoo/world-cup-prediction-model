@@ -707,7 +707,7 @@ output/realtime_context_cache/
         └── realtime_context_adjusted_plan.md
 ```
 
-每次运行实时方案必须自动保存缓存。`manifest.json` 记录运行时间、输入/输出文件路径、SHA256、行数和实时上下文命中数。后续复盘必须优先引用缓存快照，不能只看被覆盖后的最新 CSV。
+每次运行实时方案必须自动保存缓存。`manifest.json` 记录运行时间、实际生效的运行参数、输入/输出文件路径、SHA256、行数和实时上下文命中数。后续复盘必须优先引用缓存快照，不能只看被覆盖后的最新 CSV。
 
 字段规则：
 

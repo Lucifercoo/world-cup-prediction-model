@@ -124,6 +124,7 @@ before running models that depend on them.
 
 ```powershell
 uv sync
+uv run pytest -q
 uv run python .\scripts\fetch_data.py
 uv run python .\profiles.py
 uv run python -m builders.build_live_world_cup_rankings

@@ -1,53 +1,47 @@
 from __future__ import annotations
 
 import csv
-import hashlib
-import json
 import os
 import re
-import shutil
 import sys
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache
 
-from betting_plan_fifa_profile import parse_top_total_goal_buckets
+from predict import DATA_DIR, OUTPUT_DIR, canonical_team, schedule
 from predict_fifa_profile import (
     MAX_GOALS,
     PREDICTIONS_CSV,
     TOTAL_GOAL_BUCKET_LABELS,
-    aggressive_score_lambdas,
     adjust_margin_for_underdog_goal,
+    aggressive_score_lambdas,
     choose_market_bucket_from_options,
     choose_second_total_goal_bucket,
-    match_datetime_bjt,
-    outcome_adjusted_scores,
     choose_total_goal_in_bucket,
     expected_total_goals_value,
-    market_value_promoted_total_goal_bucket,
     format_total_goal_buckets,
     load_market_values,
+    match_datetime_bjt,
+    outcome_adjusted_scores,
+    poisson_pmf,
     select_recommended_score,
     select_score_by_total_and_margin,
-    select_upset_or_compression_score,
     total_goal_bucket,
-    total_goal_bucket_from_expected,
     total_goal_bucket_probabilities_from_expected,
     total_goal_probability_lookup,
-    top_total_goal_buckets,
-    top_total_goals,
-    poisson_pmf,
 )
-from predict_fifa_profile import second_bucket_from_expected_total_goals as profile_second_bucket_from_expected_total_goals
-from predict import DATA_DIR, OUTPUT_DIR, canonical_team, schedule
+from predict_fifa_profile import (
+    second_bucket_from_expected_total_goals as profile_second_bucket_from_expected_total_goals,
+)
+from reports import realtime_output
 from style_matchups import (
+    StyleMatchupEffect,
     apply_style_influence_gate,
     prediction_row_style_features,
     style_influence_factor,
     style_matchup_effect,
     team_shape_style_features,
 )
-
 
 CONTEXT_CSV = DATA_DIR / "realtime_team_context.csv"
 MATCH_SHAPE_CSV = DATA_DIR / "match_shape_context.csv"
@@ -2720,6 +2714,375 @@ def second_bucket_from_expected_total_goals(
     )
 
 
+@dataclass(frozen=True)
+class RealtimeSelection:
+    p_a: float
+    p_draw: float
+    p_b: float
+    predicted_outcome: str
+    selected_bucket: str
+    complement_bucket: str
+    top_two_total_goal_labels: str
+    score_1: tuple[int, int, float]
+    score_2: tuple[int, int, float]
+    market_value_adjusted_score: str
+    score_4: tuple[int, int, float]
+
+
+def select_realtime_outputs(
+    *,
+    row: dict,
+    kickoff_bjt: datetime,
+    completed_matches: list[CompletedMatch],
+    group_context: GroupStageContext,
+    shape_labels: str,
+    style_edge: float,
+    rank_a: int,
+    rank_b: int,
+    lambda_a: float,
+    lambda_b: float,
+    p_a: float,
+    p_draw: float,
+    p_b: float,
+    predicted_outcome: str,
+    context_a: TeamContext | None,
+    context_b: TeamContext | None,
+) -> RealtimeSelection:
+    conservative_cells = outcome_adjusted_scores(lambda_a, lambda_b, p_a, p_draw, p_b)
+    expected_total_goals = expected_total_goals_value(
+        lambda_a,
+        lambda_b,
+        p_a,
+        p_draw,
+        p_b,
+        shape_labels=shape_labels,
+    )
+    expected_total_goals = group_draw_total_goal_adjustment(
+        expected_total_goals,
+        p_a,
+        p_draw,
+        p_b,
+        shape_labels,
+        group_context,
+    )
+    expected_total_goals += group_context.open_tail_total_goals
+    total_buckets = total_goal_bucket_probabilities_from_expected(expected_total_goals)
+    raw_market_score = row.get("market_value_raw_score") or row["market_value_score"]
+    parse_score(raw_market_score)
+    favorite_recent_goal_signal = recent_goal_signal(
+        match_favorite_team(row, p_a, p_b),
+        kickoff_bjt,
+        completed_matches,
+    )
+    selected_bucket = constrained_realtime_total_goal_bucket(
+        row["selected_total_goal_bucket"],
+        total_buckets[0][0],
+        shape_labels,
+        group_context,
+    )
+    selected_bucket, total_buckets = protect_strong_favorite_from_low_bucket(
+        selected_bucket,
+        total_buckets,
+        lambda_a,
+        lambda_b,
+        p_a,
+        p_b,
+    )
+    selected_bucket, total_buckets, high_bucket_capped = apply_knockout_high_bucket_cap(
+        row["group"],
+        selected_bucket,
+        total_buckets,
+        predicted_outcome,
+        lambda_a,
+        lambda_b,
+        p_a,
+        p_draw,
+        p_b,
+        shape_labels,
+        group_context,
+    )
+    p_a, p_draw, p_b, predicted_outcome = apply_qualified_low_bucket_outcome_adjustment(
+        p_a,
+        p_draw,
+        p_b,
+        predicted_outcome,
+        selected_bucket,
+        group_context,
+    )
+    predicted_outcome = apply_knockout_draw_score_adjustment(
+        p_a,
+        p_draw,
+        p_b,
+        predicted_outcome,
+        selected_bucket,
+        group_context,
+        shape_labels,
+        lambda_a,
+        lambda_b,
+    )
+    predicted_outcome = apply_style_matchup_outcome_adjustment(
+        predicted_outcome,
+        style_edge,
+        p_a,
+        p_draw,
+        p_b,
+        lambda_a,
+        lambda_b,
+        shape_labels,
+    )
+    conservative_cells = outcome_adjusted_scores(lambda_a, lambda_b, p_a, p_draw, p_b)
+    complement_bucket = (
+        next(bucket for bucket, _ in total_buckets if bucket != selected_bucket)
+        if high_bucket_capped
+        else second_bucket_from_expected_total_goals(expected_total_goals, selected_bucket, shape_labels)
+    )
+    selected_total_goal = choose_total_goal_in_bucket(
+        conservative_cells,
+        selected_bucket,
+        predicted_outcome,
+        p_a,
+        p_b,
+        lambda_a,
+        lambda_b,
+    )
+    try:
+        score_1 = select_score_by_total_and_margin(
+            conservative_cells,
+            {selected_total_goal},
+            predicted_outcome,
+            p_a,
+            p_draw,
+            p_b,
+            lambda_a,
+            lambda_b,
+        )
+    except RuntimeError:
+        score_1, _, _ = select_recommended_score(conservative_cells, predicted_outcome)
+
+    aggressive_lambda_a, aggressive_lambda_b = aggressive_score_lambdas(rank_a, rank_b, lambda_a, lambda_b)
+    aggressive_cells = outcome_adjusted_scores(aggressive_lambda_a, aggressive_lambda_b, p_a, p_draw, p_b)
+    aggressive_score_total = choose_total_goal_in_bucket(
+        aggressive_cells,
+        complement_bucket,
+        predicted_outcome,
+        p_a,
+        p_b,
+        aggressive_lambda_a,
+        aggressive_lambda_b,
+    )
+    excluded_scores = {(score_1[0], score_1[1])}
+    try:
+        score_2 = select_aggressive_realtime_score(
+            aggressive_cells,
+            {aggressive_score_total},
+            predicted_outcome,
+            p_a,
+            p_draw,
+            p_b,
+            aggressive_lambda_a,
+            aggressive_lambda_b,
+            excluded_scores,
+            shape_labels,
+            complement_bucket,
+            source_lineup_score_confidence(context_a, context_b),
+        )
+    except RuntimeError:
+        try:
+            score_2 = select_backup_score_inside_bucket(
+                aggressive_cells,
+                complement_bucket,
+                predicted_outcome,
+                excluded_scores,
+            )
+        except RuntimeError:
+            if context_a is None or context_b is None:
+                raise
+            score_2, _, _ = select_recommended_score(aggressive_cells, predicted_outcome)
+
+    market_score_input = (
+        raw_market_score
+        if context_a is None or context_b is None
+        else market_value_micro_adjust(raw_market_score, context_a, context_b)
+    )
+    market_value_adjusted_score = market_score_constrained_to_primary_bucket(
+        market_score_input,
+        selected_bucket,
+        total_goal_probability_lookup(conservative_cells),
+    )
+    market_a, market_b = parse_score(market_value_adjusted_score)
+    score_4 = select_realtime_upset_score(
+        conservative_cells,
+        upset_total_goal_buckets(selected_bucket, complement_bucket, score_1),
+        score_1,
+        {
+            (score_1[0], score_1[1]),
+            (score_2[0], score_2[1]),
+            (market_a, market_b),
+        },
+        shape_labels,
+        favorite_recent_goal_signal,
+        p_a,
+        p_b,
+    )
+    score_1, score_2, market_value_adjusted_score, score_4 = early_knockout_score_ladder(
+        row["group"],
+        selected_bucket,
+        score_1,
+        score_2,
+        market_value_adjusted_score,
+        score_4,
+        conservative_cells,
+        p_draw,
+        lambda_a,
+        lambda_b,
+    )
+    score_1 = resolve_model_score_outcome_conflict(
+        selected_bucket,
+        predicted_outcome,
+        score_1,
+        conservative_cells,
+        p_a,
+        p_draw,
+        p_b,
+    )
+    score_2 = ensure_backup_score_inside_bucket(
+        conservative_cells,
+        complement_bucket,
+        predicted_outcome,
+        score_2,
+        {(score_1[0], score_1[1])},
+    )
+    score_4 = ensure_realtime_upset_direction(
+        conservative_cells,
+        selected_bucket,
+        complement_bucket,
+        score_1,
+        score_2,
+        market_value_adjusted_score,
+        score_4,
+        p_a,
+        p_b,
+    )
+    return RealtimeSelection(
+        p_a=p_a,
+        p_draw=p_draw,
+        p_b=p_b,
+        predicted_outcome=predicted_outcome,
+        selected_bucket=selected_bucket,
+        complement_bucket=complement_bucket,
+        top_two_total_goal_labels=format_total_goal_buckets(total_buckets, selected_bucket, complement_bucket),
+        score_1=score_1,
+        score_2=score_2,
+        market_value_adjusted_score=market_value_adjusted_score,
+        score_4=score_4,
+    )
+
+
+def build_adjusted_output_row(
+    *,
+    row: dict,
+    selection: RealtimeSelection,
+    lambda_a: float,
+    lambda_b: float,
+    shape: MatchShapeContext | None,
+    shape_labels: str,
+    style_features_a: frozenset[str],
+    style_features_b: frozenset[str],
+    style_effect: StyleMatchupEffect,
+    style_influence: float,
+    profile_a: TeamShapeProfile | None,
+    profile_b: TeamShapeProfile | None,
+    group_context: GroupStageContext,
+    context_a: TeamContext | None,
+    context_b: TeamContext | None,
+    context_chain_multipliers: str,
+    context_signal_tags: str,
+    key_player_signal_tags: str,
+) -> dict:
+    context_applied = context_a is not None and context_b is not None
+    notes = (
+        f"{row['team_a']}: {context_a.notes} | {row['team_b']}: {context_b.notes}"
+        if context_applied
+        else ""
+    )
+    sources = (
+        f"{row['team_a']}: {context_a.source_urls} | {row['team_b']}: {context_b.source_urls}"
+        if context_applied
+        else ""
+    )
+    risk_label, risk_reasons = adjusted_risk_fields(row, group_context)
+    return {
+        **row,
+        "predicted_outcome": selection.predicted_outcome,
+        "risk_label": risk_label,
+        "risk_reasons": risk_reasons,
+        "context_applied": "TRUE" if context_applied else "FALSE",
+        "shape_applied": "TRUE" if shape is not None else "FALSE",
+        "shape_labels": shape_labels,
+        "shape_notes": shape.notes if shape is not None else "",
+        "style_features_a": ";".join(sorted(style_features_a)),
+        "style_features_b": ";".join(sorted(style_features_b)),
+        "style_matchup_edge": f"{style_effect.edge:.6f}",
+        "style_matchup_influence": f"{style_influence:.3f}",
+        "style_matchup_points_shift": f"{style_effect.points_shift:.3f}",
+        "style_matchup_total_multiplier": f"{style_effect.total_goal_multiplier:.4f}",
+        "style_matchup_reasons": "; ".join(style_effect.reasons),
+        "team_shape_labels_a": ";".join(sorted(profile_a.derived_labels)) if profile_a else "",
+        "team_shape_labels_b": ";".join(sorted(profile_b.derived_labels)) if profile_b else "",
+        "team_shape_reason_a": profile_a.reason if profile_a else "",
+        "team_shape_reason_b": profile_b.reason if profile_b else "",
+        "team_shape_profile_mode": TEAM_SHAPE_PROFILE_MODE,
+        "group_round": str(group_context.round_number),
+        "draw_acceptance_a": f"{group_context.draw_acceptance_a:.2f}",
+        "draw_acceptance_b": f"{group_context.draw_acceptance_b:.2f}",
+        "group_draw_multiplier": f"{group_context.draw_multiplier:.2f}",
+        "group_tempo_multiplier": f"{group_context.tempo_multiplier:.2f}",
+        "group_context_complete": "TRUE" if group_context.complete else "FALSE",
+        "group_context_notes": group_context.notes,
+        "adjusted_p_a": f"{selection.p_a:.6f}",
+        "adjusted_p_draw": f"{selection.p_draw:.6f}",
+        "adjusted_p_b": f"{selection.p_b:.6f}",
+        "adjusted_xg_a": f"{lambda_a:.4f}",
+        "adjusted_xg_b": f"{lambda_b:.4f}",
+        "adjusted_total_goal_bucket": selection.selected_bucket,
+        "backup_total_goal_bucket": selection.complement_bucket,
+        "adjusted_total_goals_top2": selection.top_two_total_goal_labels,
+        "bucket_primary_score": format_score(selection.score_1),
+        "adjusted_score_1_model": format_score(selection.score_1),
+        "bucket_complement_score": format_score(selection.score_2),
+        "aggressive_score": format_score(selection.score_2),
+        "adjusted_score_2_aggressive_prediction": format_score(selection.score_2),
+        "adjusted_score_3_market_value": selection.market_value_adjusted_score,
+        "upset_score": format_score(selection.score_4),
+        "upset_score_probability": f"{selection.score_4[2]:.6f}",
+        "adjusted_score_4_upset": format_score(selection.score_4),
+        "adjusted_score_4_upset_probability": f"{selection.score_4[2]:.6f}",
+        "xg_goal_diff": f"{lambda_a - lambda_b:.4f}",
+        "xg_outcome_edge": f"{xg_outcome_probability_edge(lambda_a, lambda_b, selection.predicted_outcome):.6f}",
+        "legacy_outcome_edge": f"{legacy_outcome_probability_edge(selection.p_a, selection.p_draw, selection.p_b, selection.predicted_outcome):.6f}",
+        "outcome_edge_conflict": (
+            "TRUE"
+            if outcome_edge_conflict(
+                lambda_a,
+                lambda_b,
+                selection.p_a,
+                selection.p_draw,
+                selection.p_b,
+                selection.predicted_outcome,
+            )
+            else "FALSE"
+        ),
+        "context_chain_multipliers": context_chain_multipliers,
+        "context_signal_tags": ";".join(part for part in (context_signal_tags, key_player_signal_tags) if part),
+        "source_confidence_a": f"{context_a.source_confidence_multiplier:.2f}" if context_applied else "",
+        "source_confidence_b": f"{context_b.source_confidence_multiplier:.2f}" if context_applied else "",
+        "lineup_certainty_a": f"{context_a.lineup_certainty_multiplier:.2f}" if context_applied else "",
+        "lineup_certainty_b": f"{context_b.lineup_certainty_multiplier:.2f}" if context_applied else "",
+        "context_notes": notes,
+        "context_sources": sources,
+    }
+
+
 def apply_context(
     row: dict,
     contexts: dict[tuple[str, str], TeamContext],
@@ -2844,277 +3207,44 @@ def apply_context(
             style_effect.xg_scale_b,
             style_effect.total_goal_multiplier,
         )
-        conservative_cells = outcome_adjusted_scores(lambda_a, lambda_b, p_a, p_draw, p_b)
-        total_goals = top_total_goals(conservative_cells)
-        expected_total_goals = expected_total_goals_value(
-            lambda_a,
-            lambda_b,
-            p_a,
-            p_draw,
-            p_b,
+        selection = select_realtime_outputs(
+            row=row,
+            kickoff_bjt=kickoff_bjt,
+            completed_matches=completed_matches,
+            group_context=group_context,
             shape_labels=shape_labels,
+            style_edge=style_effect.edge,
+            rank_a=rank_a,
+            rank_b=rank_b,
+            lambda_a=lambda_a,
+            lambda_b=lambda_b,
+            p_a=p_a,
+            p_draw=p_draw,
+            p_b=p_b,
+            predicted_outcome=predicted_outcome,
+            context_a=context_a,
+            context_b=context_b,
         )
-        expected_total_goals = group_draw_total_goal_adjustment(
-            expected_total_goals,
-            p_a,
-            p_draw,
-            p_b,
-            shape_labels,
-            group_context,
+        return build_adjusted_output_row(
+            row=row,
+            selection=selection,
+            lambda_a=lambda_a,
+            lambda_b=lambda_b,
+            shape=shape,
+            shape_labels=shape_labels,
+            style_features_a=style_features_a,
+            style_features_b=style_features_b,
+            style_effect=style_effect,
+            style_influence=style_influence,
+            profile_a=profile_a,
+            profile_b=profile_b,
+            group_context=group_context,
+            context_a=context_a,
+            context_b=context_b,
+            context_chain_multipliers=context_chain_multipliers,
+            context_signal_tags=context_signal_tags,
+            key_player_signal_tags=key_player_signal_tags,
         )
-        expected_total_goals += group_context.open_tail_total_goals
-        total_buckets = total_goal_bucket_probabilities_from_expected(expected_total_goals)
-        raw_market_score = row.get("market_value_raw_score") or row["market_value_score"]
-        raw_market_a, raw_market_b = parse_score(raw_market_score)
-        favorite_recent_goal_signal = recent_goal_signal(
-            match_favorite_team(row, p_a, p_b),
-            kickoff_bjt,
-            completed_matches,
-        )
-        raw_selected_bucket = total_buckets[0][0]
-        constrained_selected_bucket = constrained_realtime_total_goal_bucket(
-            row["selected_total_goal_bucket"],
-            raw_selected_bucket,
-            shape_labels,
-            group_context,
-        )
-        selected_bucket = constrained_selected_bucket
-        selected_bucket, total_buckets = protect_strong_favorite_from_low_bucket(
-            selected_bucket,
-            total_buckets,
-            lambda_a,
-            lambda_b,
-            p_a,
-            p_b,
-        )
-        selected_bucket, total_buckets, high_bucket_capped = apply_knockout_high_bucket_cap(
-            row["group"],
-            selected_bucket,
-            total_buckets,
-            predicted_outcome,
-            lambda_a,
-            lambda_b,
-            p_a,
-            p_draw,
-            p_b,
-            shape_labels,
-            group_context,
-        )
-        p_a, p_draw, p_b, predicted_outcome = apply_qualified_low_bucket_outcome_adjustment(
-            p_a,
-            p_draw,
-            p_b,
-            predicted_outcome,
-            selected_bucket,
-            group_context,
-        )
-        predicted_outcome = apply_knockout_draw_score_adjustment(
-            p_a,
-            p_draw,
-            p_b,
-            predicted_outcome,
-            selected_bucket,
-            group_context,
-            shape_labels,
-            lambda_a,
-            lambda_b,
-        )
-        predicted_outcome = apply_style_matchup_outcome_adjustment(
-            predicted_outcome,
-            style_effect.edge,
-            p_a,
-            p_draw,
-            p_b,
-            lambda_a,
-            lambda_b,
-            shape_labels,
-        )
-        conservative_cells = outcome_adjusted_scores(lambda_a, lambda_b, p_a, p_draw, p_b)
-        complement_bucket = (
-            next(bucket for bucket, _ in total_buckets if bucket != selected_bucket)
-            if high_bucket_capped
-            else second_bucket_from_expected_total_goals(expected_total_goals, selected_bucket, shape_labels)
-        )
-        selected_total_goal = choose_total_goal_in_bucket(
-            conservative_cells,
-            selected_bucket,
-            predicted_outcome,
-            p_a,
-            p_b,
-            lambda_a,
-            lambda_b,
-        )
-        selected_total_goal_label = selected_bucket
-        top_two_total_goal_labels = format_total_goal_buckets(total_buckets, selected_bucket, complement_bucket)
-        try:
-            score_1 = select_score_by_total_and_margin(
-                conservative_cells,
-                {selected_total_goal},
-                predicted_outcome,
-                p_a,
-                p_draw,
-                p_b,
-                lambda_a,
-                lambda_b,
-            )
-        except RuntimeError:
-            score_1, _, _ = select_recommended_score(conservative_cells, predicted_outcome)
-
-        aggressive_lambda_a, aggressive_lambda_b = aggressive_score_lambdas(rank_a, rank_b, lambda_a, lambda_b)
-        aggressive_cells = outcome_adjusted_scores(aggressive_lambda_a, aggressive_lambda_b, p_a, p_draw, p_b)
-        aggressive_score_bucket = complement_bucket
-        aggressive_score_total = choose_total_goal_in_bucket(
-            aggressive_cells,
-            aggressive_score_bucket,
-            predicted_outcome,
-            p_a,
-            p_b,
-            aggressive_lambda_a,
-            aggressive_lambda_b,
-        )
-        try:
-            score_2 = select_aggressive_realtime_score(
-                aggressive_cells,
-                {aggressive_score_total},
-                predicted_outcome,
-                p_a,
-                p_draw,
-                p_b,
-                aggressive_lambda_a,
-                aggressive_lambda_b,
-                {(score_1[0], score_1[1])},
-                shape_labels,
-                aggressive_score_bucket,
-                source_lineup_score_confidence(context_a, context_b),
-            )
-        except RuntimeError:
-            score_2 = select_backup_score_inside_bucket(
-                aggressive_cells,
-                aggressive_score_bucket,
-                predicted_outcome,
-                {(score_1[0], score_1[1])},
-            )
-        market_value_adjusted_score = market_score_constrained_to_primary_bucket(
-            raw_market_score,
-            selected_bucket,
-            total_goal_probability_lookup(conservative_cells),
-        )
-        market_a, market_b = parse_score(market_value_adjusted_score)
-        score_4 = select_realtime_upset_score(
-            conservative_cells,
-            upset_total_goal_buckets(selected_bucket, complement_bucket, score_1),
-            score_1,
-            {
-                (score_1[0], score_1[1]),
-                (score_2[0], score_2[1]),
-                (market_a, market_b),
-            },
-            shape_labels,
-            favorite_recent_goal_signal,
-            p_a,
-            p_b,
-        )
-        score_1, score_2, market_value_adjusted_score, score_4 = early_knockout_score_ladder(
-            row["group"],
-            selected_bucket,
-            score_1,
-            score_2,
-            market_value_adjusted_score,
-            score_4,
-            conservative_cells,
-            p_draw,
-            lambda_a,
-            lambda_b,
-        )
-        score_1 = resolve_model_score_outcome_conflict(
-            selected_bucket,
-            predicted_outcome,
-            score_1,
-            conservative_cells,
-            p_a,
-            p_draw,
-            p_b,
-        )
-        score_2 = ensure_backup_score_inside_bucket(
-            conservative_cells,
-            complement_bucket,
-            predicted_outcome,
-            score_2,
-            {(score_1[0], score_1[1])},
-        )
-        score_4 = ensure_realtime_upset_direction(
-            conservative_cells,
-            selected_bucket,
-            complement_bucket,
-            score_1,
-            score_2,
-            market_value_adjusted_score,
-            score_4,
-            p_a,
-            p_b,
-        )
-        risk_label, risk_reasons = adjusted_risk_fields(row, group_context)
-        return {
-            **row,
-            "predicted_outcome": predicted_outcome,
-            "risk_label": risk_label,
-            "risk_reasons": risk_reasons,
-            "context_applied": "FALSE",
-            "shape_applied": "TRUE" if shape is not None else "FALSE",
-            "shape_labels": shape_labels,
-            "shape_notes": shape.notes if shape is not None else "",
-            "style_features_a": ";".join(style_features_a),
-            "style_features_b": ";".join(style_features_b),
-            "style_matchup_edge": f"{style_effect.edge:.6f}",
-            "style_matchup_influence": f"{style_influence:.3f}",
-            "style_matchup_points_shift": f"{style_effect.points_shift:.3f}",
-            "style_matchup_total_multiplier": f"{style_effect.total_goal_multiplier:.4f}",
-            "style_matchup_reasons": "; ".join(style_effect.reasons),
-            "team_shape_labels_a": ";".join(sorted(profile_a.derived_labels)) if profile_a else "",
-            "team_shape_labels_b": ";".join(sorted(profile_b.derived_labels)) if profile_b else "",
-            "team_shape_reason_a": profile_a.reason if profile_a else "",
-            "team_shape_reason_b": profile_b.reason if profile_b else "",
-            "team_shape_profile_mode": TEAM_SHAPE_PROFILE_MODE,
-            "group_round": str(group_context.round_number),
-            "draw_acceptance_a": f"{group_context.draw_acceptance_a:.2f}",
-            "draw_acceptance_b": f"{group_context.draw_acceptance_b:.2f}",
-            "group_draw_multiplier": f"{group_context.draw_multiplier:.2f}",
-            "group_tempo_multiplier": f"{group_context.tempo_multiplier:.2f}",
-            "group_context_complete": "TRUE" if group_context.complete else "FALSE",
-            "group_context_notes": group_context.notes,
-            "adjusted_p_a": f"{p_a:.6f}",
-            "adjusted_p_draw": f"{p_draw:.6f}",
-            "adjusted_p_b": f"{p_b:.6f}",
-            "adjusted_xg_a": f"{lambda_a:.4f}",
-            "adjusted_xg_b": f"{lambda_b:.4f}",
-            "adjusted_total_goal_bucket": selected_total_goal_label,
-            "backup_total_goal_bucket": complement_bucket,
-            "adjusted_total_goals_top2": top_two_total_goal_labels,
-            "bucket_primary_score": format_score(score_1),
-            "adjusted_score_1_model": format_score(score_1),
-            "bucket_complement_score": format_score(score_2),
-            "aggressive_score": format_score(score_2),
-            "adjusted_score_2_aggressive_prediction": format_score(score_2),
-            "adjusted_score_3_market_value": market_value_adjusted_score,
-            "upset_score": format_score(score_4),
-            "upset_score_probability": f"{score_4[2]:.6f}",
-            "adjusted_score_4_upset": format_score(score_4),
-            "adjusted_score_4_upset_probability": f"{score_4[2]:.6f}",
-            "xg_goal_diff": f"{lambda_a - lambda_b:.4f}",
-            "xg_outcome_edge": f"{xg_outcome_probability_edge(lambda_a, lambda_b, predicted_outcome):.6f}",
-            "legacy_outcome_edge": f"{legacy_outcome_probability_edge(p_a, p_draw, p_b, predicted_outcome):.6f}",
-            "outcome_edge_conflict": (
-                "TRUE" if outcome_edge_conflict(lambda_a, lambda_b, p_a, p_draw, p_b, predicted_outcome) else "FALSE"
-            ),
-            "context_chain_multipliers": context_chain_multipliers,
-            "context_signal_tags": ";".join(part for part in (context_signal_tags, key_player_signal_tags) if part),
-            "source_confidence_a": "",
-            "source_confidence_b": "",
-            "lineup_certainty_a": "",
-            "lineup_certainty_b": "",
-            "context_notes": "",
-            "context_sources": "",
-        }
 
     lambda_a = float(row["xg_a"]) * context_a.attack_multiplier * context_b.opponent_attack_multiplier
     lambda_b = float(row["xg_b"]) * context_b.attack_multiplier * context_a.opponent_attack_multiplier
@@ -3155,505 +3285,58 @@ def apply_context(
         style_effect.total_goal_multiplier,
     )
 
-    conservative_cells = outcome_adjusted_scores(lambda_a, lambda_b, p_a, p_draw, p_b)
-    total_goals = top_total_goals(conservative_cells)
-    expected_total_goals = expected_total_goals_value(
-        lambda_a,
-        lambda_b,
-        p_a,
-        p_draw,
-        p_b,
+    selection = select_realtime_outputs(
+        row=row,
+        kickoff_bjt=kickoff_bjt,
+        completed_matches=completed_matches,
+        group_context=group_context,
         shape_labels=shape_labels,
+        style_edge=style_effect.edge,
+        rank_a=rank_a,
+        rank_b=rank_b,
+        lambda_a=lambda_a,
+        lambda_b=lambda_b,
+        p_a=p_a,
+        p_draw=p_draw,
+        p_b=p_b,
+        predicted_outcome=predicted_outcome,
+        context_a=context_a,
+        context_b=context_b,
     )
-    expected_total_goals = group_draw_total_goal_adjustment(
-        expected_total_goals,
-        p_a,
-        p_draw,
-        p_b,
-        shape_labels,
-        group_context,
-    )
-    expected_total_goals += group_context.open_tail_total_goals
-    total_buckets = total_goal_bucket_probabilities_from_expected(expected_total_goals)
-    raw_market_score = row.get("market_value_raw_score") or row["market_value_score"]
-    raw_market_a, raw_market_b = parse_score(raw_market_score)
-    favorite_recent_goal_signal = recent_goal_signal(
-        match_favorite_team(row, p_a, p_b),
-        kickoff_bjt,
-        completed_matches,
-    )
-    raw_selected_bucket = total_buckets[0][0]
-    constrained_selected_bucket = constrained_realtime_total_goal_bucket(
-        row["selected_total_goal_bucket"],
-        raw_selected_bucket,
-        shape_labels,
-        group_context,
-    )
-    selected_bucket = constrained_selected_bucket
-    selected_bucket, total_buckets = protect_strong_favorite_from_low_bucket(
-        selected_bucket,
-        total_buckets,
-        lambda_a,
-        lambda_b,
-        p_a,
-        p_b,
-    )
-    selected_bucket, total_buckets, high_bucket_capped = apply_knockout_high_bucket_cap(
-        row["group"],
-        selected_bucket,
-        total_buckets,
-        predicted_outcome,
-        lambda_a,
-        lambda_b,
-        p_a,
-        p_draw,
-        p_b,
-        shape_labels,
-        group_context,
-    )
-    p_a, p_draw, p_b, predicted_outcome = apply_qualified_low_bucket_outcome_adjustment(
-        p_a,
-        p_draw,
-        p_b,
-        predicted_outcome,
-        selected_bucket,
-        group_context,
-    )
-    predicted_outcome = apply_knockout_draw_score_adjustment(
-        p_a,
-        p_draw,
-        p_b,
-        predicted_outcome,
-        selected_bucket,
-        group_context,
-        shape_labels,
-        lambda_a,
-        lambda_b,
-    )
-    predicted_outcome = apply_style_matchup_outcome_adjustment(
-        predicted_outcome,
-        style_effect.edge,
-        p_a,
-        p_draw,
-        p_b,
-        lambda_a,
-        lambda_b,
-        shape_labels,
-    )
-    conservative_cells = outcome_adjusted_scores(lambda_a, lambda_b, p_a, p_draw, p_b)
-    complement_bucket = (
-        next(bucket for bucket, _ in total_buckets if bucket != selected_bucket)
-        if high_bucket_capped
-        else second_bucket_from_expected_total_goals(expected_total_goals, selected_bucket, shape_labels)
-    )
-    selected_total_goal = choose_total_goal_in_bucket(
-        conservative_cells,
-        selected_bucket,
-        predicted_outcome,
-        p_a,
-        p_b,
-        lambda_a,
-        lambda_b,
-    )
-    selected_total_goal_label = selected_bucket
-    top_two_total_goal_labels = format_total_goal_buckets(total_buckets, selected_bucket, complement_bucket)
-    try:
-        score_1 = select_score_by_total_and_margin(
-            conservative_cells,
-            {selected_total_goal},
-            predicted_outcome,
-            p_a,
-            p_draw,
-            p_b,
-            lambda_a,
-            lambda_b,
-        )
-    except RuntimeError:
-        score_1, _, _ = select_recommended_score(conservative_cells, predicted_outcome)
-
-    aggressive_lambda_a, aggressive_lambda_b = aggressive_score_lambdas(rank_a, rank_b, lambda_a, lambda_b)
-    aggressive_cells = outcome_adjusted_scores(aggressive_lambda_a, aggressive_lambda_b, p_a, p_draw, p_b)
-    aggressive_score_bucket = complement_bucket
-    aggressive_score_total = choose_total_goal_in_bucket(
-        aggressive_cells,
-        aggressive_score_bucket,
-        predicted_outcome,
-        p_a,
-        p_b,
-        aggressive_lambda_a,
-        aggressive_lambda_b,
-    )
-    excluded_scores = {(score_1[0], score_1[1])}
-    try:
-        score_2 = select_aggressive_realtime_score(
-            aggressive_cells,
-            {aggressive_score_total},
-            predicted_outcome,
-            p_a,
-            p_draw,
-            p_b,
-            aggressive_lambda_a,
-            aggressive_lambda_b,
-            excluded_scores,
-            shape_labels,
-            aggressive_score_bucket,
-            source_lineup_score_confidence(context_a, context_b),
-        )
-    except RuntimeError:
-        try:
-            score_2 = select_backup_score_inside_bucket(
-                aggressive_cells,
-                aggressive_score_bucket,
-                predicted_outcome,
-                excluded_scores,
-            )
-        except RuntimeError:
-            score_2, _, _ = select_recommended_score(aggressive_cells, predicted_outcome)
-
-    market_value_adjusted_score = market_score_constrained_to_primary_bucket(
-        market_value_micro_adjust(raw_market_score, context_a, context_b),
-        selected_bucket,
-        total_goal_probability_lookup(conservative_cells),
-    )
-    market_a, market_b = parse_score(market_value_adjusted_score)
-    score_4 = select_realtime_upset_score(
-        conservative_cells,
-        upset_total_goal_buckets(selected_bucket, complement_bucket, score_1),
-        score_1,
-        {
-            (score_1[0], score_1[1]),
-            (score_2[0], score_2[1]),
-            (market_a, market_b),
-        },
-        shape_labels,
-        favorite_recent_goal_signal,
-        p_a,
-        p_b,
-    )
-    score_1, score_2, market_value_adjusted_score, score_4 = early_knockout_score_ladder(
-        row["group"],
-        selected_bucket,
-        score_1,
-        score_2,
-        market_value_adjusted_score,
-        score_4,
-        conservative_cells,
-        p_draw,
-        lambda_a,
-        lambda_b,
-    )
-    score_1 = resolve_model_score_outcome_conflict(
-        selected_bucket,
-        predicted_outcome,
-        score_1,
-        conservative_cells,
-        p_a,
-        p_draw,
-        p_b,
-    )
-    score_2 = ensure_backup_score_inside_bucket(
-        conservative_cells,
-        complement_bucket,
-        predicted_outcome,
-        score_2,
-        {(score_1[0], score_1[1])},
-    )
-    score_4 = ensure_realtime_upset_direction(
-        conservative_cells,
-        selected_bucket,
-        complement_bucket,
-        score_1,
-        score_2,
-        market_value_adjusted_score,
-        score_4,
-        p_a,
-        p_b,
+    return build_adjusted_output_row(
+        row=row,
+        selection=selection,
+        lambda_a=lambda_a,
+        lambda_b=lambda_b,
+        shape=shape,
+        shape_labels=shape_labels,
+        style_features_a=style_features_a,
+        style_features_b=style_features_b,
+        style_effect=style_effect,
+        style_influence=style_influence,
+        profile_a=profile_a,
+        profile_b=profile_b,
+        group_context=group_context,
+        context_a=context_a,
+        context_b=context_b,
+        context_chain_multipliers=context_chain_multipliers,
+        context_signal_tags=context_signal_tags,
+        key_player_signal_tags=key_player_signal_tags,
     )
 
-    notes = f"{row['team_a']}: {context_a.notes} | {row['team_b']}: {context_b.notes}"
-    sources = f"{row['team_a']}: {context_a.source_urls} | {row['team_b']}: {context_b.source_urls}"
-    risk_label, risk_reasons = adjusted_risk_fields(row, group_context)
+
+def runtime_parameters() -> dict[str, object]:
     return {
-        **row,
-        "risk_label": risk_label,
-        "risk_reasons": risk_reasons,
-        "context_applied": "TRUE",
-        "shape_applied": "TRUE" if shape is not None else "FALSE",
-        "shape_labels": shape_labels,
-        "shape_notes": shape.notes if shape is not None else "",
-        "style_features_a": ";".join(style_features_a),
-        "style_features_b": ";".join(style_features_b),
-        "style_matchup_edge": f"{style_effect.edge:.6f}",
-        "style_matchup_influence": f"{style_influence:.3f}",
-        "style_matchup_points_shift": f"{style_effect.points_shift:.3f}",
-        "style_matchup_total_multiplier": f"{style_effect.total_goal_multiplier:.4f}",
-        "style_matchup_reasons": "; ".join(style_effect.reasons),
-        "team_shape_labels_a": ";".join(sorted(profile_a.derived_labels)) if profile_a else "",
-        "team_shape_labels_b": ";".join(sorted(profile_b.derived_labels)) if profile_b else "",
-        "team_shape_reason_a": profile_a.reason if profile_a else "",
-        "team_shape_reason_b": profile_b.reason if profile_b else "",
         "team_shape_profile_mode": TEAM_SHAPE_PROFILE_MODE,
-        "group_round": str(group_context.round_number),
-        "draw_acceptance_a": f"{group_context.draw_acceptance_a:.2f}",
-        "draw_acceptance_b": f"{group_context.draw_acceptance_b:.2f}",
-        "group_draw_multiplier": f"{group_context.draw_multiplier:.2f}",
-        "group_tempo_multiplier": f"{group_context.tempo_multiplier:.2f}",
-        "group_context_complete": "TRUE" if group_context.complete else "FALSE",
-        "group_context_notes": group_context.notes,
-        "adjusted_p_a": f"{p_a:.6f}",
-        "adjusted_p_draw": f"{p_draw:.6f}",
-        "adjusted_p_b": f"{p_b:.6f}",
-        "predicted_outcome": predicted_outcome,
-        "adjusted_xg_a": f"{lambda_a:.4f}",
-        "adjusted_xg_b": f"{lambda_b:.4f}",
-        "adjusted_total_goal_bucket": selected_total_goal_label,
-        "backup_total_goal_bucket": complement_bucket,
-        "adjusted_total_goals_top2": top_two_total_goal_labels,
-        "bucket_primary_score": format_score(score_1),
-        "adjusted_score_1_model": format_score(score_1),
-        "bucket_complement_score": format_score(score_2),
-        "aggressive_score": format_score(score_2),
-        "adjusted_score_2_aggressive_prediction": format_score(score_2),
-        "adjusted_score_3_market_value": market_value_adjusted_score,
-        "upset_score": format_score(score_4),
-        "upset_score_probability": f"{score_4[2]:.6f}",
-        "adjusted_score_4_upset": format_score(score_4),
-        "adjusted_score_4_upset_probability": f"{score_4[2]:.6f}",
-        "xg_goal_diff": f"{lambda_a - lambda_b:.4f}",
-        "xg_outcome_edge": f"{xg_outcome_probability_edge(lambda_a, lambda_b, predicted_outcome):.6f}",
-        "legacy_outcome_edge": f"{legacy_outcome_probability_edge(p_a, p_draw, p_b, predicted_outcome):.6f}",
-        "outcome_edge_conflict": (
-            "TRUE" if outcome_edge_conflict(lambda_a, lambda_b, p_a, p_draw, p_b, predicted_outcome) else "FALSE"
+        "strong_favorite_low_bucket_min_favorite_xg": STRONG_FAVORITE_LOW_BUCKET_MIN_FAVORITE_XG,
+        "strong_favorite_low_bucket_max_underdog_xg": STRONG_FAVORITE_LOW_BUCKET_MAX_UNDERDOG_XG,
+        "strong_favorite_low_bucket_min_probability": STRONG_FAVORITE_LOW_BUCKET_MIN_PROBABILITY,
+        "include_completed_match_keys": sorted(
+            item.strip()
+            for item in os.environ.get("WC_INCLUDE_COMPLETED_MATCH_KEYS", "").split(",")
+            if item.strip()
         ),
-        "context_chain_multipliers": context_chain_multipliers,
-        "context_signal_tags": ";".join(part for part in (context_signal_tags, key_player_signal_tags) if part),
-        "source_confidence_a": f"{context_a.source_confidence_multiplier:.2f}",
-        "source_confidence_b": f"{context_b.source_confidence_multiplier:.2f}",
-        "lineup_certainty_a": f"{context_a.lineup_certainty_multiplier:.2f}",
-        "lineup_certainty_b": f"{context_b.lineup_certainty_multiplier:.2f}",
-        "context_notes": notes,
-        "context_sources": sources,
     }
-
-
-def outcome_label(row: dict) -> str:
-    if row["predicted_outcome"] == "A":
-        return f"{row['team_a']}胜"
-    if row["predicted_outcome"] == "B":
-        return f"{row['team_b']}胜"
-    if row["predicted_outcome"] == "D":
-        return "平局"
-    raise ValueError(f"unknown outcome: {row['predicted_outcome']}")
-
-
-def write_csv(rows: list[dict]) -> None:
-    fields = [
-        "date_bjt",
-        "time_bjt",
-        "group",
-        "team_a",
-        "team_b",
-        "venue",
-        "predicted_outcome",
-        "p_a",
-        "p_draw",
-        "p_b",
-        "adjusted_p_a",
-        "adjusted_p_draw",
-        "adjusted_p_b",
-        "xg_a",
-        "xg_b",
-        "adjusted_xg_a",
-        "adjusted_xg_b",
-        "selected_total_goal_bucket",
-        "adjusted_total_goal_bucket",
-        "backup_total_goal_bucket",
-        "adjusted_total_goals_top2",
-        "bucket_primary_score",
-        "adjusted_score_1_model",
-        "bucket_complement_score",
-        "aggressive_score",
-        "adjusted_score_2_aggressive_prediction",
-        "market_value_raw_score",
-        "market_value_score",
-        "adjusted_score_3_market_value",
-        "upset_score",
-        "upset_score_probability",
-        "adjusted_score_4_upset",
-        "adjusted_score_4_upset_probability",
-        "xg_goal_diff",
-        "xg_outcome_edge",
-        "legacy_outcome_edge",
-        "outcome_edge_conflict",
-        "risk_label",
-        "risk_reasons",
-        "context_applied",
-        "shape_applied",
-        "shape_labels",
-        "shape_notes",
-        "style_features_a",
-        "style_features_b",
-        "style_matchup_edge",
-        "style_matchup_influence",
-        "style_matchup_points_shift",
-        "style_matchup_total_multiplier",
-        "style_matchup_reasons",
-        "team_shape_labels_a",
-        "team_shape_labels_b",
-        "team_shape_reason_a",
-        "team_shape_reason_b",
-        "team_shape_profile_mode",
-        "group_round",
-        "draw_acceptance_a",
-        "draw_acceptance_b",
-        "group_draw_multiplier",
-        "group_tempo_multiplier",
-        "group_context_complete",
-        "group_context_notes",
-        "context_chain_multipliers",
-        "context_signal_tags",
-        "source_confidence_a",
-        "source_confidence_b",
-        "lineup_certainty_a",
-        "lineup_certainty_b",
-        "context_notes",
-        "context_sources",
-    ]
-    with ADJUSTED_CSV.open("w", encoding="utf-8-sig", newline="") as fh:
-        writer = csv.DictWriter(fh, fieldnames=fields)
-        writer.writeheader()
-        for row in rows:
-            writer.writerow({field: row.get(field, "") for field in fields})
-
-
-def write_markdown(rows: list[dict]) -> None:
-    lines = [
-        "# 实时战队情况调整版方案",
-        "",
-        "- 调整 xG、平局概率、精确总进球数和比分项。",
-        "- 比赛形态层可改变胜负参考。",
-        "- 小组形势层按轮次和赛前积分调整平局接受度。",
-        "- 缺失字段不猜，按 1.00 处理。",
-        "",
-        "| 北京时间 | 比赛 | 胜负参考 | 风险提示 | 调整概率 | 小组形势 | 形态 | 实时链路 | 原总进球 | 总进球Top2 | 模型 | 备选 | 身价 | 爆冷 | xG变化 |",
-        "|---|---|---|---|---:|---|---|---|---|---|---:|---:|---:|---:|---:|",
-    ]
-    for row in rows:
-        if row["context_applied"] != "TRUE":
-            continue
-        lines.append(
-            "| {date} {time} | {match} | {outcome} | {risk} | {probs} | {group_context} | {shape} | {chain} | {old_bucket} | {new_bucket} | "
-            "{model} | {aggressive} | {market} | {upset} | {old_xg}->{new_xg} |".format(
-                date=row["date_bjt"],
-                time=row["time_bjt"],
-                match=f"{row['team_a']} vs {row['team_b']}",
-                outcome=outcome_label(row),
-                risk=row.get("risk_label", ""),
-                probs=(
-                    f"{float(row.get('adjusted_p_a') or row['p_a']):.1%}/"
-                    f"{float(row.get('adjusted_p_draw') or row['p_draw']):.1%}/"
-                    f"{float(row.get('adjusted_p_b') or row['p_b']):.1%}"
-                ),
-                group_context=row.get("group_context_notes", ""),
-                shape=row.get("shape_labels", ""),
-                chain=row.get("context_signal_tags", ""),
-                old_bucket=row["selected_total_goal_bucket"],
-                new_bucket=row.get("adjusted_total_goals_top2", row["adjusted_total_goal_bucket"]),
-                model=row["adjusted_score_1_model"],
-                aggressive=row["adjusted_score_2_aggressive_prediction"],
-                market=row["adjusted_score_3_market_value"],
-                upset=row.get("adjusted_score_4_upset") or row.get("upset_score", ""),
-                old_xg=f"{float(row['xg_a']):.2f}-{float(row['xg_b']):.2f}",
-                new_xg=f"{float(row['adjusted_xg_a']):.2f}-{float(row['adjusted_xg_b']):.2f}",
-            )
-        )
-    lines.extend(["", "## 实时依据", ""])
-    for row in rows:
-        if row["context_applied"] != "TRUE":
-            continue
-        lines.extend(
-            [
-                f"### {row['team_a']} vs {row['team_b']}",
-                "",
-                f"形态：{row.get('shape_labels', '')}",
-                "",
-                f"小组形势：{row.get('group_context_notes', '')}",
-                "",
-                row.get("shape_notes", ""),
-                "",
-                row["context_notes"],
-                "",
-                row["context_sources"],
-                "",
-            ]
-        )
-    ADJUSTED_MD.write_text("\n".join(lines), encoding="utf-8")
-
-
-def file_sha256(path) -> str | None:
-    if not path.exists():
-        return None
-    digest = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def cache_file(source, target_dir, name: str) -> dict:
-    target_dir.mkdir(parents=True, exist_ok=True)
-    item = {
-        "name": name,
-        "source": str(source),
-        "exists": source.exists(),
-        "sha256": file_sha256(source),
-    }
-    if source.exists():
-        target = target_dir / source.name
-        shutil.copy2(source, target)
-        item["cached_path"] = str(target)
-    return item
-
-
-def write_realtime_cache(rows: list[dict]) -> str:
-    run_id = datetime.now(BJT).strftime("%Y%m%d_%H%M%S_%f")
-    run_dir = REALTIME_CACHE_DIR / run_id
-    input_dir = run_dir / "inputs"
-    output_dir = run_dir / "outputs"
-    source_files = [
-        ("base_predictions", PREDICTIONS_CSV),
-        ("realtime_team_context", CONTEXT_CSV),
-        ("match_shape_context", MATCH_SHAPE_CSV),
-        ("in_tournament_team_shape_profiles", TEAM_SHAPE_PROFILE_CSV),
-        ("key_player_signals", KEY_PLAYER_SIGNAL_CSV),
-        ("key_player_match_status", KEY_PLAYER_MATCH_STATUS_CSV),
-        ("world_cup_2026_results", RESULTS_CSV),
-        ("international_results", INTERNATIONAL_RESULTS_CSV),
-    ]
-    output_files = [
-        ("realtime_context_adjusted_plan_csv", ADJUSTED_CSV),
-        ("realtime_context_adjusted_plan_md", ADJUSTED_MD),
-    ]
-    manifest = {
-        "run_id": run_id,
-        "created_at_bjt": datetime.now(BJT).isoformat(timespec="seconds"),
-        "script": "realtime_context_adjusted_plan.py",
-        "team_shape_profile_mode": TEAM_SHAPE_PROFILE_MODE,
-        "row_count": len(rows),
-        "context_applied_count": sum(1 for row in rows if row["context_applied"] == "TRUE"),
-        "shape_applied_count": sum(1 for row in rows if row["shape_applied"] == "TRUE"),
-        "input_files": [cache_file(path, input_dir, name) for name, path in source_files],
-        "output_files": [cache_file(path, output_dir, name) for name, path in output_files],
-    }
-    run_dir.mkdir(parents=True, exist_ok=True)
-    manifest_path = run_dir / "manifest.json"
-    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (REALTIME_CACHE_DIR / "latest_run_id.txt").write_text(run_id + "\n", encoding="utf-8")
-    (REALTIME_CACHE_DIR / "latest_manifest.json").write_text(
-        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
-        encoding="utf-8",
-    )
-    return str(run_dir)
 
 
 def main() -> None:
@@ -3681,9 +3364,27 @@ def main() -> None:
         )
         for row in load_predictions()
     ]
-    write_csv(rows)
-    write_markdown(rows)
-    cache_dir = write_realtime_cache(rows)
+    realtime_output.write_csv(ADJUSTED_CSV, rows)
+    realtime_output.write_markdown(ADJUSTED_MD, rows)
+    cache_dir = realtime_output.write_realtime_cache(
+        rows,
+        cache_dir=REALTIME_CACHE_DIR,
+        source_files=[
+            ("base_predictions", PREDICTIONS_CSV),
+            ("realtime_team_context", CONTEXT_CSV),
+            ("match_shape_context", MATCH_SHAPE_CSV),
+            ("in_tournament_team_shape_profiles", TEAM_SHAPE_PROFILE_CSV),
+            ("key_player_signals", KEY_PLAYER_SIGNAL_CSV),
+            ("key_player_match_status", KEY_PLAYER_MATCH_STATUS_CSV),
+            ("world_cup_2026_results", RESULTS_CSV),
+            ("international_results", INTERNATIONAL_RESULTS_CSV),
+        ],
+        output_files=[
+            ("realtime_context_adjusted_plan_csv", ADJUSTED_CSV),
+            ("realtime_context_adjusted_plan_md", ADJUSTED_MD),
+        ],
+        runtime_parameters=runtime_parameters(),
+    )
     print(f"CSV: {ADJUSTED_CSV}")
     print(f"Markdown: {ADJUSTED_MD}")
     print(f"Cache: {cache_dir}")

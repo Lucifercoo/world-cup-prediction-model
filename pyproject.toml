@@ -11,4 +11,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "matplotlib>=3.10.0",
+    "pytest>=9.1.1",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
