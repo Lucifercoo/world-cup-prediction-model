@@ -142,6 +142,42 @@ def test_evaluate_forwards_full_cache_path(monkeypatch: pytest.MonkeyPatch) -> N
     ]
 
 
+def test_inspect_arguments_are_forwarded(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        wc_model,
+        "run_module",
+        lambda module, *arguments: calls.append((module, arguments)),
+    )
+
+    assert wc_model.main(["inspect", "--date", "2026-07-20", "--team", "Spain"]) == 0
+    assert calls == [
+        ("scripts.inspect_predictions", ("--date", "2026-07-20", "--team", "Spain")),
+    ]
+
+
+def test_context_prepare_and_apply_are_forwarded(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        wc_model,
+        "run_module",
+        lambda module, *arguments: calls.append((module, arguments)),
+    )
+
+    assert wc_model.main(["context", "prepare", "context.json", "--output-dir", "package"]) == 0
+    assert wc_model.main(["context", "apply", "package", "--data-dir", "data-copy"]) == 0
+    assert calls == [
+        (
+            "scripts.prepare_realtime_context_package",
+            ("context.json", "--output-dir", "package"),
+        ),
+        (
+            "scripts.apply_realtime_context_package",
+            ("package", "--data-dir", "data-copy"),
+        ),
+    ]
+
+
 def test_registered_experiment_modules_exist() -> None:
     missing = [
         experiment.module

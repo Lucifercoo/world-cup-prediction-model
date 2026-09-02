@@ -156,6 +156,21 @@ def run_report(args: argparse.Namespace) -> None:
     run_module("reports.daily_match_report", args.match_date, "--no-refresh")
 
 
+def run_context(args: argparse.Namespace) -> None:
+    if args.context_command == "prepare":
+        run_module(
+            "scripts.prepare_realtime_context_package",
+            args.input,
+            "--output-dir",
+            args.output_dir,
+        )
+    else:
+        arguments = [args.package_dir]
+        if args.data_dir:
+            arguments.extend(("--data-dir", args.data_dir))
+        run_module("scripts.apply_realtime_context_package", *arguments)
+
+
 def list_experiments() -> None:
     for name, experiment in EXPERIMENTS.items():
         print(f"{name:<38} {experiment.description}")
@@ -203,6 +218,20 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evaluate_parser.add_argument("--cache-dir", help="Full cache path used with --source cache.")
 
+    inspect_parser = commands.add_parser("inspect", help="Inspect generated match predictions.")
+    inspect_parser.add_argument("--date", help="Filter by Beijing date (YYYY-MM-DD).")
+    inspect_parser.add_argument("--team", help="Filter by English team name.")
+    inspect_parser.add_argument("--input", help="Use a different prediction CSV.")
+
+    context_parser = commands.add_parser("context", help="Prepare or apply realtime context.")
+    context_commands = context_parser.add_subparsers(dest="context_command", required=True)
+    context_prepare = context_commands.add_parser("prepare", help="Validate LLM context JSON.")
+    context_prepare.add_argument("input")
+    context_prepare.add_argument("--output-dir", default="output/context-package")
+    context_apply = context_commands.add_parser("apply", help="Apply a validated context package.")
+    context_apply.add_argument("package_dir")
+    context_apply.add_argument("--data-dir")
+
     experiment_parser = commands.add_parser("experiment", help="List or run isolated experiments.")
     experiment_commands = experiment_parser.add_subparsers(dest="experiment_command", required=True)
     experiment_commands.add_parser("list", help="List registered experiments.")
@@ -228,6 +257,17 @@ def main(argv: list[str] | None = None) -> int:
         run_module("evaluation.evaluate_finished_from_realtime_cache", *arguments)
         if args.source == "archive":
             run_module("evaluation.compare_base_and_realtime")
+    elif args.command == "inspect":
+        arguments = []
+        if args.date:
+            arguments.extend(("--date", args.date))
+        if args.team:
+            arguments.extend(("--team", args.team))
+        if args.input:
+            arguments.extend(("--input", args.input))
+        run_module("scripts.inspect_predictions", *arguments)
+    elif args.command == "context":
+        run_context(args)
     elif args.experiment_command == "list":
         list_experiments()
     else:
