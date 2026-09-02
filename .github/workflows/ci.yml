@@ -31,8 +31,8 @@ jobs:
           uv python install 3.11
           uv sync --frozen --python 3.11
 
-      - name: Acquire public data
-        run: uv run python scripts/fetch_data.py
+      - name: Prepare public model inputs
+        run: uv run python -m wc_model setup --data-only
 
       - name: Verify data checksums
         run: uv run python scripts/verify_data_inventory.py
@@ -43,11 +43,14 @@ jobs:
       - name: Run tests
         run: uv run pytest -q
 
+      - name: Reproduce published strict evaluation
+        run: uv run python -m wc_model evaluate
+
       - name: Check command entry point
         run: uv run python -m wc_model experiment list
 
-      - name: Build rolling team profiles
-        run: uv run python profiles.py
-
-      - name: Verify restricted-input boundary
+      - name: Verify public input boundary
         run: uv run python scripts/verify_public_checkout.py
+
+      - name: Run complete public pipeline
+        run: uv run python -m wc_model build

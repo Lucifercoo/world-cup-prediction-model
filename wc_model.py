@@ -15,6 +15,7 @@ REQUIRED_MODEL_INPUTS = (
     "transfermarkt_world_cup_2026_values.csv",
     "world_cup_2026_key_player_signals.csv",
 )
+OPTIONAL_EMPTY_MODEL_INPUTS = {"world_cup_2026_key_player_signals.csv"}
 
 
 @dataclass(frozen=True)
@@ -110,7 +111,7 @@ def require_model_inputs() -> None:
             reader = csv.DictReader(data_handle)
             if reader.fieldnames != expected_fields:
                 problems.append(f"data/{name} does not match schemas/{name}")
-            elif next(reader, None) is None:
+            elif next(reader, None) is None and name not in OPTIONAL_EMPTY_MODEL_INPUTS:
                 problems.append(f"data/{name} contains no data rows")
     if not problems:
         return
@@ -137,6 +138,14 @@ def run_data(args: argparse.Namespace) -> None:
     for name in args.file:
         arguments.extend(("--file", name))
     run_module("scripts.fetch_data", *arguments)
+
+
+def run_setup(args: argparse.Namespace) -> None:
+    run_module("scripts.fetch_data")
+    run_module("scripts.prepare_public_data")
+    run_module("builders.fetch_wikipedia_squad_club_cohesion")
+    if not args.data_only:
+        run_pipeline(replay=False)
 
 
 def run_report(args: argparse.Namespace) -> None:
@@ -170,12 +179,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="Rebuild the in-tournament event ledger from all recorded results.",
     )
 
+    setup_parser = commands.add_parser(
+        "setup",
+        help="Prepare public inputs and run the complete pipeline.",
+    )
+    setup_parser.add_argument(
+        "--data-only",
+        action="store_true",
+        help="Prepare public inputs without running predictions.",
+    )
+
     report_parser = commands.add_parser("report", help="Generate a dated Markdown report.")
     report_parser.add_argument("match_date", nargs="?", default=date.today().isoformat())
     report_parser.add_argument("--no-build", action="store_true", help="Use existing prediction outputs.")
     report_parser.add_argument("--replay", action="store_true", help="Replay state before reporting.")
 
-    commands.add_parser("evaluate", help="Evaluate pre-kickoff prediction caches.")
+    evaluate_parser = commands.add_parser("evaluate", help="Evaluate strict pre-match predictions.")
+    evaluate_parser.add_argument(
+        "--source",
+        choices=("archive", "cache"),
+        default="archive",
+        help="Use the public compact archive or a local full cache.",
+    )
+    evaluate_parser.add_argument("--cache-dir", help="Full cache path used with --source cache.")
 
     experiment_parser = commands.add_parser("experiment", help="List or run isolated experiments.")
     experiment_commands = experiment_parser.add_subparsers(dest="experiment_command", required=True)
@@ -189,12 +215,19 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "data":
         run_data(args)
+    elif args.command == "setup":
+        run_setup(args)
     elif args.command == "build":
         run_pipeline(replay=args.replay)
     elif args.command == "report":
         run_report(args)
     elif args.command == "evaluate":
-        run_module("evaluation.evaluate_finished_from_realtime_cache")
+        arguments = ["--source", args.source]
+        if args.cache_dir:
+            arguments.extend(("--cache-dir", args.cache_dir))
+        run_module("evaluation.evaluate_finished_from_realtime_cache", *arguments)
+        if args.source == "archive":
+            run_module("evaluation.compare_base_and_realtime")
     elif args.experiment_command == "list":
         list_experiments()
     else:

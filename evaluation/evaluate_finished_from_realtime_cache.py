@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import statistics
@@ -20,6 +21,7 @@ OUTPUT_DIR = ROOT / "output"
 RESULTS_CSV = ROOT / "data" / "world_cup_2026_results.csv"
 KNOCKOUT_DECISIONS_CSV = ROOT / "data" / "world_cup_2026_knockout_decisions.csv"
 CACHE_DIR = OUTPUT_DIR / "realtime_context_cache"
+ARCHIVE_CSV = ROOT / "data" / "strict_pre_match_predictions.csv"
 DETAIL_CSV = OUTPUT_DIR / "finished_realtime_cache_evaluation.csv"
 SUMMARY_MD = OUTPUT_DIR / "finished_realtime_cache_evaluation_summary.md"
 BUCKET_REWEIGHT_MD = OUTPUT_DIR / "finished_realtime_cache_bucket_reweight_experiment.md"
@@ -121,13 +123,16 @@ def load_results() -> list[dict]:
     return rows
 
 
-def load_cache_runs() -> list[dict]:
+def load_cache_runs(cache_dir: Path = CACHE_DIR) -> list[dict]:
     runs: list[dict] = []
-    if not CACHE_DIR.exists():
+    if not cache_dir.exists():
         return runs
-    for manifest_path in CACHE_DIR.glob("*/manifest.json"):
+    for manifest_path in cache_dir.glob("*/manifest.json"):
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         output_path = manifest_path.parent / "outputs" / "realtime_context_adjusted_plan.csv"
+        base_prediction_path = (
+            manifest_path.parent / "inputs" / "group_score_predictions_fifa_profile.csv"
+        )
         if not output_path.exists():
             continue
         runs.append(
@@ -135,6 +140,8 @@ def load_cache_runs() -> list[dict]:
                 "run_id": manifest["run_id"],
                 "created_at_utc": parse_bjt(manifest["created_at_bjt"]),
                 "plan_csv": output_path,
+                "base_prediction_csv": base_prediction_path if base_prediction_path.exists() else None,
+                "manifest_path": manifest_path,
             }
         )
     return sorted(runs, key=lambda item: item["created_at_utc"])
@@ -153,6 +160,40 @@ def cache_for_match(result: dict, runs: list[dict]) -> tuple[dict, dict] | None:
         if key in rows:
             return run, rows[key]
     return None
+
+
+def load_prediction_archive(path: Path = ARCHIVE_CSV) -> dict[tuple[str, str, str, str], tuple[dict, dict]]:
+    if not path.exists():
+        raise RuntimeError(f"pre-match prediction archive is missing: {path}")
+    archived: dict[tuple[str, str, str, str], tuple[dict, dict]] = {}
+    with path.open(encoding="utf-8-sig", newline="") as fh:
+        for prediction in csv.DictReader(fh):
+            key = match_key(prediction)
+            if key in archived:
+                raise RuntimeError(f"duplicate match in pre-match prediction archive: {key}")
+            run = {
+                "run_id": prediction["cache_run_id"],
+                "created_at_utc": parse_bjt(prediction["cache_created_at_utc"]),
+            }
+            archived[key] = (run, prediction)
+    if not archived:
+        raise RuntimeError(f"pre-match prediction archive contains no rows: {path}")
+    return archived
+
+
+def archive_for_match(
+    result: dict,
+    archived: dict[tuple[str, str, str, str], tuple[dict, dict]],
+) -> tuple[dict, dict] | None:
+    found = archived.get(match_key(result))
+    if found is None:
+        return None
+    run, prediction = found
+    if run["created_at_utc"] >= result["kickoff_utc"]:
+        raise RuntimeError(
+            f"archived prediction is not pre-match: {result['team_a']} vs {result['team_b']}"
+        )
+    return run, prediction
 
 
 def parse_bucket_probabilities(value: str) -> list[tuple[str, float]]:
@@ -307,13 +348,13 @@ def write_detail(rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
-def write_summary(rows: list[dict], skipped: list[dict]) -> None:
+def write_summary(rows: list[dict], skipped: list[dict], source: str) -> None:
     overall = summarize(rows)
     denominator = max(1, overall["matches"])
     lines = [
         "# Finished Match Evaluation From Realtime Cache",
         "",
-        "只使用每场开赛前最后一次实时缓存。",
+        f"来源：`{source}`。每场只使用开赛前最后一次实时预测。",
         "",
         "## Overall",
         "",
@@ -371,20 +412,43 @@ def write_bucket_reweight_experiment(rows: list[dict]) -> None:
     BUCKET_REWEIGHT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def main() -> None:
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Evaluate strict pre-match predictions.")
+    parser.add_argument(
+        "--source",
+        choices=("archive", "cache"),
+        default="archive",
+        help="Use the compact public archive or the full maintainer cache.",
+    )
+    parser.add_argument("--cache-dir", type=Path, default=CACHE_DIR)
+    parser.add_argument("--archive", type=Path, default=ARCHIVE_CSV)
+    return parser.parse_args()
+
+
+def main(*, source: str = "archive", cache_dir: Path = CACHE_DIR, archive_path: Path = ARCHIVE_CSV) -> None:
     results = load_results()
-    runs = load_cache_runs()
+    runs = load_cache_runs(cache_dir) if source == "cache" else []
+    archived = load_prediction_archive(archive_path) if source == "archive" else {}
     rows: list[dict] = []
     skipped: list[dict] = []
     for result in results:
-        found = cache_for_match(result, runs)
+        found = (
+            cache_for_match(result, runs)
+            if source == "cache"
+            else archive_for_match(result, archived)
+        )
         if found is None:
             skipped.append({**result, "reason": "no pre-match realtime cache"})
             continue
         cache_run, prediction = found
         rows.append(evaluated_row(result, cache_run, prediction))
+    if not rows:
+        raise RuntimeError(
+            f"no pre-match predictions found in {source}; "
+            "published evaluation files were not changed"
+        )
     write_detail(rows)
-    write_summary(rows, skipped)
+    write_summary(rows, skipped, source)
     write_bucket_reweight_experiment(rows)
     print(f"Detail CSV: {DETAIL_CSV}")
     print(f"Summary: {SUMMARY_MD}")
@@ -394,4 +458,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    main(source=args.source, cache_dir=args.cache_dir, archive_path=args.archive)

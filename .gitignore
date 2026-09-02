@@ -9,6 +9,8 @@ __pycache__/
 # Data is private-by-default. Public datasets are force-added only after the
 # source and redistribution review recorded in docs/DATA_INVENTORY.csv.
 data/*
+!data/strict_pre_match_predictions.csv
+!data/strict_pre_match_predictions_manifest.json
 
 # Large, generated, or temporary runtime artifacts.
 output/realtime_context_cache/

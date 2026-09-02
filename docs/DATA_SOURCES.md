@@ -13,17 +13,16 @@ method. List the available methods with:
 uv run python scripts/fetch_data.py --list
 ```
 
-Download every immutable and redistributable source currently supported:
+Prepare all public-mode inputs and run the model:
 
 ```powershell
-uv run python scripts/fetch_data.py
+uv run python -m wc_model setup
 ```
 
-After manually supplying permitted prerequisites, generated datasets can be
-built with `uv run python scripts/fetch_data.py --build`. Every downloaded file
-is checked against the recorded size and SHA-256 before it replaces a local
-file. Run `uv run python scripts/verify_data_inventory.py` for a full local
-inventory check.
+Use `--data-only` to stop after data preparation. Immutable downloads and the
+pinned Kaggle member are checked against recorded SHA-256 values. Run
+`uv run python scripts/verify_data_inventory.py` for a full local inventory
+check.
 
 ## Publication decisions
 
@@ -40,12 +39,11 @@ inventory check.
 | Source | Local use | License or terms | Current decision |
 | --- | --- | --- | --- |
 | [martj42/international_results](https://github.com/martj42/international_results) | Historical international results | CC0-1.0 | Include with provenance. |
-| [cashncarry/fifaworldranking](https://www.kaggle.com/datasets/cashncarry/fifaworldranking) | Historical FIFA ranking export | CC0 on the dataset page | Review the local file's provenance before inclusion. |
-| [Dato-Futbol/fifa-ranking](https://github.com/Dato-Futbol/fifa-ranking) | Historical FIFA points | No repository license | Exclude the copied data; keep source instructions only. |
-| [FIFA World Ranking](https://inside.fifa.com/fifa-world-ranking/men) | 2025/2026 snapshots | [FIFA Terms of Service](https://legal.fifa.com/terms-of-service) do not grant general dataset redistribution | Exclude raw and derived snapshots. |
+| [cashncarry/fifaworldranking](https://www.kaggle.com/datasets/cashncarry/fifaworldranking) | Historical FIFA ranking export | CC0 on the dataset page | Download a pinned member and normalize locally. |
+| [FIFA World Ranking](https://inside.fifa.com/fifa-world-ranking/men) | 2025/2026 snapshots | [FIFA Terms of Service](https://legal.fifa.com/terms-of-service) do not grant general dataset redistribution | Generate locally; do not commit snapshots. |
 | [Open-Meteo](https://open-meteo.com/) | Historical weather and geocoding | [CC BY 4.0 data; API plan limits apply](https://open-meteo.com/en/terms) | Rebuild caches and attribute Open-Meteo. |
 | [Wikipedia: 2026 FIFA World Cup squads](https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_squads) | Player-club affiliations | CC BY-SA 4.0 | Include only with article attribution and share-alike notice. |
-| [Transfermarkt](https://www.transfermarkt.us/world-cup/teilnehmer/pokalwettbewerb/FIWC) | Squad market values | [Terms prohibit automated scraping/copying](https://www.transfermarkt.us/intern/anb) | Exclude scraped values and the automated-fetch workflow from a public release. |
+| [Transfermarkt](https://www.transfermarkt.us/world-cup/teilnehmer/pokalwettbewerb/FIWC) | Formal-run squad market values | [Terms prohibit automated scraping/copying](https://www.transfermarkt.us/intern/anb) | Exclude; public mode uses a clearly labeled FIFA-points proxy. |
 
 ## Reproducibility strategy
 
@@ -53,22 +51,26 @@ inventory check.
    checksum.
 2. Commit project-authored match inputs and generated state only after checking
    that notes summarize facts rather than copy article prose.
-3. Replace restricted files with schemas and user-supplied input paths. A clean
-   checkout must fail clearly when a required restricted input is missing.
-4. Keep API caches out of Git. Builders must record endpoint, request date,
+3. Build a public model variant from pinned historical rankings, fixed
+   pre-tournament snapshots, and an explicitly labeled squad-value proxy.
+4. Publish the minimum project-authored pre-match prediction archive needed to
+   recompute formal metrics; keep results and hit labels in independent files.
+5. Keep API caches out of Git. Builders must record endpoint, request date,
    parameters, and attribution in their generated manifest.
-5. Never replace unavailable production data with mock values.
+6. Never replace unavailable production data with mock values.
 
 This inventory is a conservative engineering review, not legal advice.
 
-## Restricted input schemas
+## Input schemas
 
-The repository provides header-only schemas for required inputs that cannot be
-redistributed:
+The repository provides schemas for generated public inputs and permitted
+user-supplied replacements:
 
 - `schemas/fifa_rankings_annual_start.csv`
 - `schemas/transfermarkt_world_cup_2026_values.csv`
 - `schemas/world_cup_2026_key_player_signals.csv`
 
-Place legally obtained files with those names in `data/`. Empty schemas are
-not valid model inputs and are never used as fallback data.
+`world_cup_2026_key_player_signals.csv` may contain only its header; that
+explicitly disables the optional key-player layer. FIFA ranking and squad-value
+inputs must contain data rows. User-supplied replacements must retain the same
+schema and comply with their upstream terms.

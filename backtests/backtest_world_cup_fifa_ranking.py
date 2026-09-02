@@ -13,7 +13,7 @@ from profiles import OUTPUT_DIR
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
-RANKING_CSV = DATA_DIR / "fifa_rankings_history_datofutbol.csv"
+RANKING_CSV = DATA_DIR / "fifa_rankings_history_open.csv"
 MATCH_CSV = OUTPUT_DIR / "world_cup_fifa_ranking_backtest_matches.csv"
 SUMMARY_MD = OUTPUT_DIR / "world_cup_fifa_ranking_backtest_summary.md"
 DRAW_RANK_GAP = 10

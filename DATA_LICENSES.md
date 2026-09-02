@@ -15,8 +15,10 @@ The following files and project-generated derivatives are licensed under the
 - `data/world_cup_2026_result_sources.csv`
 - `data/world_cup_2026_results.csv`
 - `data/world_cup_2026_team_discipline_profiles.csv`
+- `data/strict_pre_match_predictions.csv` and its provenance manifest
 - generated tournament-adjustment and style-profile datasets identified as
   `include-project` in `docs/DATA_INVENTORY.csv`
+- the public-mode squad-value proxy generated from pre-tournament FIFA points
 
 Attribution: **World Cup Prediction Model data, Lucifercoo, 2026**. State when
 changes have been made and retain links to the original reporting sources.
@@ -25,6 +27,8 @@ changes have been made and retain links to the original reporting sources.
 
 - `international_results.csv`: CC0-1.0, from
   [martj42/international_results](https://github.com/martj42/international_results).
+- `fifa_rankings_history_open.csv`: normalized locally from the pinned
+  `cashncarry/fifaworldranking` file identified as CC0 on its dataset page.
 - `world_cup_2026_squad_clubs.csv` and
   `world_cup_2026_team_club_cohesion.csv`: derived from
   [Wikipedia's 2026 FIFA World Cup squads article](https://en.wikipedia.org/wiki/2026_FIFA_World_Cup_squads)
@@ -32,6 +36,6 @@ changes have been made and retain links to the original reporting sources.
 - Open-Meteo cache data: CC BY 4.0; see
   [Open-Meteo terms](https://open-meteo.com/en/terms).
 
-Files marked `excluded` or `manual` in `docs/DATA_FETCH.csv` are not licensed
-by this project. Users must obtain and use them under the upstream provider's
-terms.
+Locally generated FIFA snapshots remain subject to FIFA's terms and are not
+redistributed by this project. Users replacing public proxy inputs remain
+responsible for the terms governing their own data.

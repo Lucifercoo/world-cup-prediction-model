@@ -14,7 +14,7 @@ def test_required_inputs_fail_before_pipeline(tmp_path: Path, monkeypatch: pytes
         wc_model.require_model_inputs()
 
 
-def test_header_only_restricted_inputs_are_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_header_only_required_inputs_are_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     for name in wc_model.REQUIRED_MODEL_INPUTS:
         schema = wc_model.ROOT / "schemas" / name
         (tmp_path / name).write_text(schema.read_text(encoding="utf-8-sig"), encoding="utf-8")
@@ -22,6 +22,21 @@ def test_header_only_restricted_inputs_are_rejected(tmp_path: Path, monkeypatch:
 
     with pytest.raises(RuntimeError, match="contains no data rows"):
         wc_model.require_model_inputs()
+
+
+def test_empty_key_player_signals_disable_optional_layer(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in wc_model.REQUIRED_MODEL_INPUTS:
+        schema = wc_model.ROOT / "schemas" / name
+        content = schema.read_text(encoding="utf-8-sig")
+        if name != "world_cup_2026_key_player_signals.csv":
+            content += "\n" + ",".join("1" for _ in content.strip().split(","))
+        (tmp_path / name).write_text(content, encoding="utf-8")
+    monkeypatch.setattr(wc_model, "DATA_DIR", tmp_path)
+
+    wc_model.require_model_inputs()
 
 
 def test_pipeline_order_and_replay_scope(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -70,6 +85,60 @@ def test_data_arguments_are_forwarded(monkeypatch: pytest.MonkeyPatch) -> None:
     assert wc_model.main(["data", "--build", "--file", "style_matchup_edges.csv"]) == 0
     assert calls == [
         ("scripts.fetch_data", ("--build", "--file", "style_matchup_edges.csv")),
+    ]
+
+
+def test_setup_prepares_inputs_before_pipeline(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        wc_model,
+        "run_module",
+        lambda module, *arguments: calls.append((module, arguments)),
+    )
+    monkeypatch.setattr(
+        wc_model,
+        "run_pipeline",
+        lambda *, replay: calls.append(("pipeline", (str(replay),))),
+    )
+
+    assert wc_model.main(["setup"]) == 0
+    assert calls == [
+        ("scripts.fetch_data", ()),
+        ("scripts.prepare_public_data", ()),
+        ("builders.fetch_wikipedia_squad_club_cohesion", ()),
+        ("pipeline", ("False",)),
+    ]
+
+
+def test_evaluate_uses_public_archive_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        wc_model,
+        "run_module",
+        lambda module, *arguments: calls.append((module, arguments)),
+    )
+
+    assert wc_model.main(["evaluate"]) == 0
+    assert calls == [
+        ("evaluation.evaluate_finished_from_realtime_cache", ("--source", "archive")),
+        ("evaluation.compare_base_and_realtime", ()),
+    ]
+
+
+def test_evaluate_forwards_full_cache_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        wc_model,
+        "run_module",
+        lambda module, *arguments: calls.append((module, arguments)),
+    )
+
+    assert wc_model.main(["evaluate", "--source", "cache", "--cache-dir", "cache"]) == 0
+    assert calls == [
+        (
+            "evaluation.evaluate_finished_from_realtime_cache",
+            ("--source", "cache", "--cache-dir", "cache"),
+        ),
     ]
 
 

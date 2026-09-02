@@ -13,29 +13,32 @@
 </div>
 
 This project forecasts international football matches by combining FIFA and
-live tournament rankings, rolling ten-year team profiles, squad value,
+live tournament rankings, rolling ten-year team profiles, squad-strength signals,
 in-tournament form, tactical matchup signals, and cached pre-match context.
 
-Every published evaluation uses the last prediction saved **before kickoff**.
+Every published formal evaluation uses the last prediction saved **before kickoff**.
 Post-match reports and observed match shapes are never used to rewrite that
 match's historical forecast.
 
 ![Strict pre-match evaluation across 79 matches](docs/assets/strict-evaluation.png)
 
+The chart shows the realtime-assisted operational system, not the base model alone.
+
 ## Results
 
-The current strict evaluation covers 79 matches with an available pre-match
-cache. Outcome, total-goal, and exact-score metrics use regulation time.
-Extra time and penalties are recorded separately for advancement.
+The strict evaluation covers 79 matches with a recorded pre-match forecast.
+The published operational result includes human-initiated web research performed
+with **GPT-5.5 at very-high reasoning effort**, followed by deterministic model
+adjustments. It is not a model-only backtest.
 
-| Metric | Result |
-| --- | ---: |
-| Outcome accuracy | **67.1%** |
-| Top-1 total-goal bucket accuracy | **32.9%** |
-| Top-2 total-goal bucket coverage | **69.6%** |
-| Any exact-score hit | **35.4%** |
-| Any candidate in the correct goal bucket | **77.2%** |
-| Median normalized score deviation | **0.700** |
+| System | Outcome | Goal Top-1 | Goal Top-2 | Any exact score | Any score bucket | Median deviation |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Base model | **68.4%** | 21.5% | 57.0% | 25.3% | 57.0% | **0.667** |
+| Realtime-assisted system | 67.1% | **32.9%** | **69.6%** | **35.4%** | **77.2%** | 0.700 |
+
+Realtime context improved goal-bucket and exact-score coverage, but did not
+improve outcome accuracy in this sample. Outcome, total-goal, and exact-score
+metrics use regulation time; extra time and penalties are recorded separately.
 
 Performance differs by tournament stage:
 
@@ -55,7 +58,8 @@ correct Top-1 bucket for an individual match remains difficult:
 | 6-8 | 5 | 4 |
 
 See the [full evaluation report](output/finished_realtime_cache_evaluation_summary.md)
-and [match-level results](output/finished_realtime_cache_evaluation.csv).
+and [base-versus-realtime comparison](output/base_vs_realtime_evaluation_summary.md),
+plus the [match-level results](output/finished_realtime_cache_evaluation.csv).
 
 ## Forecast Output
 
@@ -90,7 +94,7 @@ flowchart LR
     C[Squad value and club cohesion] --> D
     D --> E[Outcome and expected-goal model]
     D --> F[Total-goal model]
-    G[Pre-match context] --> E
+    G[Human + GPT-5.5 pre-match research] --> E
     G --> F
     E --> H[Score allocation]
     F --> H
@@ -112,24 +116,37 @@ travel, weather, tactical shape, group incentives, and style matchup evidence.
 Signals are cached with their prediction so later evaluation can preserve the
 information available at kickoff.
 
+The language model did not calculate the final forecast directly. It searched
+and synthesized evidence into reviewed context fields; project code applied
+those fields to probabilities, expected goals, goal buckets, and score choices.
+The original workflow used GPT-5.5 with `very high` reasoning. Other models can
+produce different context judgments. The reusable prompt and JSON contract are
+in [`prompts/realtime_context_collection_zh.md`](prompts/realtime_context_collection_zh.md).
+
 ## Quick Start
 
 Requirements: Python 3.11 or newer and
 [`uv`](https://docs.astral.sh/uv/).
 
-The fetch command downloads only immutable data cleared for automated
-redistribution. Run it with `--list` and follow
-[`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) for manual or generated inputs
-before running models that depend on them.
+Prepare the public inputs and run the complete pipeline with one command:
 
 ```powershell
 uv sync
 uv run pytest -q
-uv run python -m wc_model data
+uv run python -m wc_model setup
 ```
 
-Supply the three restricted inputs listed in
-[`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md), then run the complete pipeline:
+The setup command downloads the reviewed historical sources, fixes the 2026
+FIFA ranking at the pre-tournament `2026-06-11` snapshot, builds squad-club
+cohesion, creates an explicitly labeled FIFA-points squad-value proxy, disables
+the optional key-player layer, and runs all eight prediction steps.
+
+This public mode is a runnable model variant, but it cannot regenerate the
+original formal predictions because that run used locally supplied squad
+values and key-player signals that are not redistributed. The published
+evaluation remains reproducible from the project-authored pre-match prediction
+archive described below. Developers with their own permitted inputs can replace
+the two generated CSV files and rerun:
 
 ```powershell
 uv run python -m wc_model build
@@ -152,18 +169,30 @@ when intentionally rendering an existing prediction snapshot.
 Rebuild the README statistics image from the checked-in evaluation data:
 
 ```powershell
-uv run python .\scripts\generate_readme_stats.py
+uv run python scripts/generate_readme_stats.py
 ```
 
-Strict evaluation requires a local `output/realtime_context_cache/` archive:
+Reproduce the published 79-match strict evaluation directly from the compact
+pre-match archive committed in `data/`:
 
 ```powershell
 uv run python -m wc_model evaluate
 ```
 
-The full runtime cache is about 1.9 GB and is not committed. The derived
-match-level evaluation CSV is included so the published figures remain
-inspectable and the chart remains reproducible.
+The archive contains predictions created before kickoff, base-model outputs,
+realtime audit fields, timestamps, and source hashes. Match results are loaded independently from
+`world_cup_2026_results.csv`; hit and deviation fields are recomputed. The
+compact archive reproduces the same 79 match rows as the original 1.89 GB cache.
+
+Maintainers can independently verify the extraction against the full cache:
+
+```powershell
+uv run python -m wc_model evaluate --source cache --cache-dir <cache-path>
+uv run python -m scripts.export_strict_prediction_archive --cache-dir <cache-path> --expected-matches 79
+```
+
+The first 25 tournament matches are excluded because no pre-kickoff cache was
+recorded for them. They are never reconstructed from later model output.
 
 List or run isolated model experiments through the same entry point:
 
@@ -202,6 +231,7 @@ retrofitting. More detail is available in [the design document](docs/DESIGN.md).
 |-- evaluation/    # Prediction and cache evaluation
 |-- experiments/   # Isolated model experiments
 |-- output/        # Selected predictions and evaluation results
+|-- prompts/       # Realtime evidence-collection prompts
 |-- reports/       # Daily Markdown report generation
 |-- scripts/       # Reproducible documentation utilities
 |-- wc_model.py    # Unified project command entry point
@@ -213,8 +243,8 @@ retrofitting. More detail is available in [the design document](docs/DESIGN.md).
 
 ## Data and Limitations
 
-The project uses public match results, FIFA ranking snapshots, squad market
-values, squad lists, weather data, and linked public reporting. Review
+The project uses public match results, FIFA ranking snapshots, squad-strength
+signals, squad lists, weather data, and linked public reporting. Review
 [data sources and redistribution notes](docs/DATA_SOURCES.md) before publishing
 or repackaging the datasets.
 

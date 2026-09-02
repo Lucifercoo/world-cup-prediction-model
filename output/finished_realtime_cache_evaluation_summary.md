@@ -1,6 +1,6 @@
 # Finished Match Evaluation From Realtime Cache
 
-只使用每场开赛前最后一次实时缓存。
+来源：`archive`。每场只使用开赛前最后一次实时预测。
 
 ## Overall
 

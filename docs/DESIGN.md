@@ -562,19 +562,20 @@ flowchart TD
 
 也就是说，总进球桶保持保守覆盖，备选比分用于覆盖第二情景；有大球证据时可偏大，没有大球证据时允许更保守。
 
-## Transfermarkt 身价比分
+## 阵容强度比分
 
-2026 世界杯参赛队总身价来自 Transfermarkt 参赛队页面，保存为：
+正式历史运行使用本地提供的参赛队身价，保存为：
 
 ```text
 data/transfermarkt_world_cup_2026_values.csv
 ```
 
-该文件包含受上游条款约束的第三方数据，公开仓库不提供自动抓取器或原始文件。开发者必须按
-`docs/DATA_FETCH.csv` 自行取得合法数据并保持相同字段结构。
+公开模式不抓取或分发 Transfermarkt 数据。`wc_model setup` 根据 2026 赛前 FIFA
+积分生成对数映射代理，并在每行 `source` 中写明 `NOT Transfermarkt`。代理模式用于验证
+工程流程，不能复现正式历史运行中身价相关的比分列。
 
 ```powershell
-uv run python .\scripts\verify_data_inventory.py
+uv run python scripts/verify_data_inventory.py
 ```
 
 身价现在有两种用途：
@@ -969,6 +970,19 @@ uv run python -m backtests.backtest_in_tournament_adjustments
 
 模型调参不能按单场结果卡阈值。任何新增参数先按连续评分实现，再和当前正式版比较。
 
+正式 2026 评估使用 `data/strict_pre_match_predictions.csv`。该文件只保存每场开赛前
+最后一次预测、对应基础模型输出、实时审计字段、生成时间和来源哈希，不保存赛果、
+命中字段或偏离度。评估命令将它与
+独立赛果表连接后重新计算 79 场指标。原始 1.89 GB 缓存仍可由维护者通过
+`--source cache` 复核归档提取结果；前 25 场没有赛前缓存，因此明确排除，不能用赛后
+输出补造。
+
+实时信息不是基础模型自动采集。正式运行由人工发起搜索，使用 GPT-5.5、极高
+（`very_high`）推理强度完成来源核对和结构化判断，再由代码应用参数。正式成绩因此
+同时报告基础模型与实时辅助系统。第三方可使用其他联网模型和
+`prompts/realtime_context_collection_zh.md` 复现采集流程；来源覆盖和模型判断不同会导致
+结果不同，必须保留实际模型、推理强度、采集时间和来源。
+
 | 规则 | 要求 |
 |---|---|
 | 参数形式 | 优先连续评分，不用 `>= 某值就强制翻桶` 的硬触发 |
@@ -997,14 +1011,14 @@ uv run python -m evaluation.evaluate_first8_realtime_context
 
 | 年份 | 来源 | 规则 |
 |---|---|---|
-| 1992-2024 | `Dato-Futbol/fifa-ranking` | 每年第一期 |
+| 1992-2024 | `cashncarry/fifaworldranking` 固定 CC0 文件 | 每年第一期 |
 | 2025 | FIFA 官方页/API | 2025 年第一期，即 `2025-04-03` |
-| 2026 | FIFA 官方页/API | 使用当前最新一期，即 `2026-06-11` |
+| 2026 | FIFA 官方页/API | 固定赛前最后一期 `2026-06-11` |
 
 原始文件：
 
 ```text
-data/fifa_rankings_history_datofutbol.csv
+data/fifa_rankings_history_open.csv
 data/fifa_rankings_official_snapshots.csv
 ```
 
@@ -1014,11 +1028,10 @@ data/fifa_rankings_official_snapshots.csv
 data/fifa_rankings_annual_start.csv
 ```
 
-这些原始排名文件不随公开仓库分发。开发者必须按 `docs/DATA_FETCH.csv` 和上游条款自行提供，
-然后才能生成年度快照：
+这些文件由公开初始化命令在本地生成，不随仓库分发：
 
 ```powershell
-uv run python -m builders.build_fifa_annual_rankings
+uv run python -m wc_model setup --data-only
 ```
 
 取数规则：
@@ -1026,7 +1039,7 @@ uv run python -m builders.build_fifa_annual_rankings
 | 字段 | 规则 |
 |---|---|
 | 年份范围 | 1992 到 2026 |
-| 快照日期 | 1992-2025 每年最早一期；2026 使用最新一期 |
+| 快照日期 | 1992-2025 每年最早一期；2026 固定为开赛前最后一期 |
 | rank | 1992-2024 按 `total_points` 降序重算；2025-2026 使用 FIFA 官方返回名次 |
 | total_points | 保留 FIFA 积分 |
 | team | 统一到项目内国家队名称 |

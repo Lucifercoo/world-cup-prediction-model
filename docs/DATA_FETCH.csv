@@ -1,10 +1,8 @@
 file,mode,source_url,command,notes
 fifa_ranking-2022-10-06.csv,manual,https://www.kaggle.com/datasets/cashncarry/fifaworldranking,,Local provenance must be confirmed before use.
-fifa_rankings_annual_start.csv,excluded,,,Required user input; follow schemas/fifa_rankings_annual_start.csv.
-fifa_rankings_history_datofutbol.csv,excluded,https://github.com/Dato-Futbol/fifa-ranking,,Upstream repository has no license.
-fifa_rankings_official_2025_first.json,excluded,https://inside.fifa.com/fifa-world-ranking/men,,FIFA terms do not grant general dataset redistribution.
-fifa_rankings_official_2026_latest.json,excluded,https://inside.fifa.com/fifa-world-ranking/men,,FIFA terms do not grant general dataset redistribution.
-fifa_rankings_official_snapshots.csv,excluded,https://inside.fifa.com/fifa-world-ranking/men,,Derived from excluded FIFA API responses.
+fifa_rankings_annual_start.csv,build,https://www.kaggle.com/datasets/cashncarry/fifaworldranking,uv run python -m scripts.prepare_public_data,Combines CC0 history with fixed local FIFA snapshots.
+fifa_rankings_history_open.csv,build,https://www.kaggle.com/datasets/cashncarry/fifaworldranking,uv run python -m scripts.prepare_public_data,Normalized from a pinned CC0 Kaggle file.
+fifa_rankings_official_snapshots.csv,build,https://inside.fifa.com/fifa-world-ranking/men,uv run python -m scripts.prepare_public_data,Generated locally; 2026 is capped at 2026-06-11 to prevent leakage.
 in_tournament_adjustment_events.csv,build,,uv run python -m builders.build_in_tournament_adjustments,Generated after tournament results and match context are present.
 in_tournament_team_adjustments.csv,build,,uv run python -m builders.build_in_tournament_adjustments,Generated with the adjustment event ledger.
 in_tournament_team_shape_profiles.csv,build,,uv run python -m builders.build_in_tournament_shape_profiles,Generated after tournament results and adjustment events are present.
@@ -14,9 +12,11 @@ open_meteo_geocoding_cache.json,build,,uv run python -m builders.analyze_world_c
 open_meteo_weather_cache.json,build,,uv run python -m builders.analyze_world_cup_heat_latitude,Rebuilt with the geocoding cache.
 realtime_team_context.csv,repository,,,Project-authored match context distributed under CC BY 4.0.
 style_matchup_edges.csv,build,,uv run python -m builders.build_style_matchup_edges,Generated from historical style profiles.
-transfermarkt_world_cup_2026_values.csv,excluded,https://www.transfermarkt.us/world-cup/teilnehmer/pokalwettbewerb/FIWC,,Required user input; automated scraping is unsupported; follow the schema file.
+strict_pre_match_predictions.csv,repository,,,Project-authored predictions selected strictly before kickoff; contains no results or hit labels.
+strict_pre_match_predictions_manifest.json,repository,,,Archive checksum and source cache-run hashes for provenance verification.
+transfermarkt_world_cup_2026_values.csv,build,,uv run python -m scripts.prepare_public_data,Public proxy derived from FIFA points; explicitly not Transfermarkt data.
 world_cup_2026_key_player_match_status.csv,repository,,,Project-authored match context distributed under CC BY 4.0.
-world_cup_2026_key_player_signals.csv,excluded,,,Required user input; contains market-value fields; follow the schema file.
+world_cup_2026_key_player_signals.csv,build,,uv run python -m scripts.prepare_public_data,Header-only file disables the optional key-player layer in public mode.
 world_cup_2026_knockout_decisions.csv,repository,,,Expected to ship with the repository after project data licensing.
 world_cup_2026_result_sources.csv,repository,,,Project-authored factual source summaries distributed under CC BY 4.0.
 world_cup_2026_results.csv,repository,,,Expected to ship with the repository after project data licensing.

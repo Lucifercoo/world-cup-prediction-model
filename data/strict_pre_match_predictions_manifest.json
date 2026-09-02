@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "description": "Minimal project-authored pre-kickoff prediction archive for strict evaluation.",
+  "selection_rule": "Latest cached prediction with cache_created_at_utc strictly before kickoff.",
+  "contains_results": false,
+  "realtime_collection": {
+    "model": "GPT-5.5",
+    "reasoning_effort": "very_high",
+    "method": "Human-initiated web research with LLM evidence synthesis and structured parameter entry."
+  },
+  "match_count": 79,
+  "source_run_count": 26,
+  "archive_file": "strict_pre_match_predictions.csv",
+  "archive_sha256": "fe6bc993e542c74f0c311f50a58a1f442fb11d41950b2dbd360e93bff13ed1d1",
+  "source_cache_latest_created_at_utc": "2026-07-19T06:22:34+00:00",
+  "source_runs": [
+    {
+      "run_id": "20260618_163440_431072",
+      "created_at_utc": "2026-06-18T08:34:40+00:00",
+      "manifest_sha256": "956fd10a148e9e2d757ea4c5abd173fb4386c1aca5618db6340851ac86ce4786",
+      "plan_sha256": "2044812f61c52a7dc3790cb7bbbbe065027c74690068fb89b5f894e5bf3931d0"
+    },
+    {
+      "run_id": "20260619_133550_429779",
+      "created_at_utc": "2026-06-19T05:35:50+00:00",
+      "manifest_sha256": "37a8a6e0084fd120f646a32ac33272692a52c57af8e7aeb26868a040638f1d3e",
+      "plan_sha256": "0dd69199461a4fc308bd8ff2fd96ed5dfb58494840ec14acdd57946dc7a30061"
+    },
+    {
+      "run_id": "20260620_175531_074382",
+      "created_at_utc": "2026-06-20T09:55:31+00:00",
+      "manifest_sha256": "8a48870fbef740be60fd022c10cea77267ce53c9f9493d59ddad5acf9dc8c702",
+      "plan_sha256": "6e5ef0a72405ebdf9745c753c2ca1890957a36e0f72131d9b1ad4550ad14c112"
+    },
+    {
+      "run_id": "20260621_200719_359906",
+      "created_at_utc": "2026-06-21T12:07:19+00:00",
+      "manifest_sha256": "c74bb7c3fcdf1580ea3d8b63684a09f2441292fcde9f61015f37636c39eb19b4",
+      "plan_sha256": "ca551587571b13896b131a4ddc01322a4df7b75a81a4b97f850121ce892c8c66"
+    },
+    {
+      "run_id": "20260622_213742_834586",
+      "created_at_utc": "2026-06-22T13:37:42+00:00",
+      "manifest_sha256": "2edc45a86efa579a544d1a9595351fe421f4405b7d2060fa42085f258beb3299",
+      "plan_sha256": "5f8ab8b07f2d50acb4bff91f7ffddc3f9e1debc60a8e72155bd5afc1c818b917"
+    },
+    {
+      "run_id": "20260623_211114_893716",
+      "created_at_utc": "2026-06-23T13:11:14+00:00",
+      "manifest_sha256": "128e92889302ebdd59e002cbeefc70aca9f8f0562a127f8413359e4b7c74d948",
+      "plan_sha256": "c0151f66d5d9cc79ff38d8462ada585cf18c03fad562ef7971db81407b6012c6"
+    },
+    {
+      "run_id": "20260624_175702_636907",
+      "created_at_utc": "2026-06-24T09:57:02+00:00",
+      "manifest_sha256": "7597f1337f242959c05eab8533e533ae7b75759e287754068dfdf3a84b1070c8",
+      "plan_sha256": "f924f0459ccf81bfa533556ffb029894c39dc27ff12c01723003f12b10bc5a1f"
+    },
+    {
+      "run_id": "20260625_131731_538193",
+      "created_at_utc": "2026-06-25T05:17:31+00:00",
+      "manifest_sha256": "ea5c9acff5366695a430fb29ea095c7cf1ef7a8c32171b16a11d780ebce639e8",
+      "plan_sha256": "e63fdb912341d5c8c23df1f2ba0186bfc8f53ac4121eb90de83a00b50159a818"
+    },
+    {
+      "run_id": "20260626_163300_406961",
+      "created_at_utc": "2026-06-26T08:33:00+00:00",
+      "manifest_sha256": "b2fecbc0c33eeb0fb0967900a35be2a5ea1bf613315fa324ebfbed890323f712",
+      "plan_sha256": "028c58758eeb038ba7aee4eb5522d729f42ca6732586e1a716323170f1e63eef"
+    },
+    {
+      "run_id": "20260627_174538_026677",
+      "created_at_utc": "2026-06-27T09:45:38+00:00",
+      "manifest_sha256": "cb4084a03ae3e5dad7b16c98f34f70580865008d0792b387de02bd2c9c9651af",
+      "plan_sha256": "a020b545567d53cfd35ee64d1728892099503ce477435fa8209867bb415e9fdc"
+    },
+    {
+      "run_id": "20260628_130235_447224",
+      "created_at_utc": "2026-06-28T05:02:35+00:00",
+      "manifest_sha256": "e262ff7638c8c7250f792286eef90f75bbc803b2beb4aa7a5b6d4d38897c9c43",
+      "plan_sha256": "9c1931a6a494d62181290b4bea0f18587891a72995831bfd85dcc7a8c40a9262"
+    },
+    {
+      "run_id": "20260629_120202_537967",
+      "created_at_utc": "2026-06-29T04:02:02+00:00",
+      "manifest_sha256": "2bc1dda8a6ed478879d86e1522b081efb42ffac901128ec1bdcd844ad682b2d0",
+      "plan_sha256": "a7828669d6bd6e318f05fc00c64bbb9ed89b3392ae5601e868dbe737bf85a2e0"
+    },
+    {
+      "run_id": "20260630_125513_214072",
+      "created_at_utc": "2026-06-30T04:55:13+00:00",
+      "manifest_sha256": "f6c0927b899f6c1cb601bbada3e88e8c908734c8950a6fa48927837f873e5d5a",
+      "plan_sha256": "f4567692c1247abfc316d1fdb1c84c15d5d29327a82653264adc0aa491b22ea5"
+    },
+    {
+      "run_id": "20260701_131353_619281",
+      "created_at_utc": "2026-07-01T05:13:53+00:00",
+      "manifest_sha256": "1285d61927c3db122ebbb253bee0044c4a62506fca409a41d2da587530b18a05",
+      "plan_sha256": "21f97c5d6b21d7d0ebd33003ee4137c67403cb764434c74c8855296f5a501c03"
+    },
+    {
+      "run_id": "20260702_104158_188709",
+      "created_at_utc": "2026-07-02T02:41:58+00:00",
+      "manifest_sha256": "6b1271712819102fbaefb721769dc27a72f2ecb09e497caabdc2224e8f186d61",
+      "plan_sha256": "9ce1d8116a072d337d9da8bb67698ecae73e4c4bf16b7beddacc2285b74de4a4"
+    },
+    {
+      "run_id": "20260703_161857_715581",
+      "created_at_utc": "2026-07-03T08:18:57+00:00",
+      "manifest_sha256": "e181546a77b01c366fde401f301dba1012a3715cb2030c305ec34dcf4ff423fa",
+      "plan_sha256": "7c0b75f41fea1295b85d28179faefabb31d984f860e4325c1cc1d6ca7d2795c8"
+    },
+    {
+      "run_id": "20260704_154155_042960",
+      "created_at_utc": "2026-07-04T07:41:55+00:00",
+      "manifest_sha256": "a6f9e596edaf87a4d2e0e3a55817e5883df32ae9ac15924f4e1e1472816b7386",
+      "plan_sha256": "04c7cf8c431bfcd48a5f00d95d25f5bdb100662b0f460bf2eb3e940d1bf00c45"
+    },
+    {
+      "run_id": "20260705_111602_747428",
+      "created_at_utc": "2026-07-05T03:16:02+00:00",
+      "manifest_sha256": "853055a45fa139500b7734d45bbf5ea20ee51ef1ed6fe08fc936bd8bfb360676",
+      "plan_sha256": "75ff29d595b64224bb82d579f38683eca7cfe62aaa958e3619192cc6b5ad7a7d"
+    },
+    {
+      "run_id": "20260706_142753_866415",
+      "created_at_utc": "2026-07-06T06:27:53+00:00",
+      "manifest_sha256": "1fa13f51c8e72040a62a44c49dcbdc26bebc296fc9b65909d56f91014e3aab6a",
+      "plan_sha256": "9241b9f6189e65e715d35b2effad0d488f50c112761324125829558ac95ef7d4"
+    },
+    {
+      "run_id": "20260707_130521_224124",
+      "created_at_utc": "2026-07-07T05:05:21+00:00",
+      "manifest_sha256": "244ebadeb2529506d0c349bb4a7620a868e30c2c7fe51a7b33fea32c610c1580",
+      "plan_sha256": "9897d269b69386604a630827ff07863f75d2ce8f59a7709c70a8ef06b2d4f3df"
+    },
+    {
+      "run_id": "20260708_101323_903061",
+      "created_at_utc": "2026-07-08T02:13:23+00:00",
+      "manifest_sha256": "444ffb051660d57c50a0e81dce7dc529f7943b0a5cd36652d46901e5dbf2cfff",
+      "plan_sha256": "8da0cecff3fddca5792c4ee866e98b3a76759e425839486ceb81924d85743772"
+    },
+    {
+      "run_id": "20260710_095200_419184",
+      "created_at_utc": "2026-07-10T01:52:00+00:00",
+      "manifest_sha256": "ef0d25fea07725f23f20c3c38ce6f6a59d2868f9c72d0947f072530824c2fb08",
+      "plan_sha256": "10b893e3bb528a683fb32b0beb9e084f24cfd0402461a0996553288e2fb0a4a0"
+    },
+    {
+      "run_id": "20260711_112603_201986",
+      "created_at_utc": "2026-07-11T03:26:03+00:00",
+      "manifest_sha256": "08460a724ccd67a589b32c742fcf2246ae0dfa780daefe2cd49fd12e21f9500f",
+      "plan_sha256": "f94609247e812e57f360c1002f236cee9b4238fbc80e9dc78df8bb6074868584"
+    },
+    {
+      "run_id": "20260714_121834_309522",
+      "created_at_utc": "2026-07-14T04:18:34+00:00",
+      "manifest_sha256": "34c6fc21fe477436492b90c3c57c11b185a845231d219b7ea1e0e134080a872b",
+      "plan_sha256": "a042217c36b59bb96da32e1f419dff6029e19413380bfc28435f57c0bca83820"
+    },
+    {
+      "run_id": "20260715_161744_151173",
+      "created_at_utc": "2026-07-15T08:17:44+00:00",
+      "manifest_sha256": "558b477ca36e5830ec48f9a388d49121149ae7db2e3d4bb5baf9b01233fdad26",
+      "plan_sha256": "fac8a617277f18c3c15db80a5dd039441fd2a73cacd6266cd2104b6c59b9ad26"
+    },
+    {
+      "run_id": "20260719_142234_507087",
+      "created_at_utc": "2026-07-19T06:22:34+00:00",
+      "manifest_sha256": "715540dbb9a9b40ed54919471d3fc5dc87fec72960f51bcfe713c38ed2e1443d",
+      "plan_sha256": "80a61d62b682fc77f7c93d767bb0d61b762310fce98f5756cc3bea7da67f6cee"
+    }
+  ]
+}

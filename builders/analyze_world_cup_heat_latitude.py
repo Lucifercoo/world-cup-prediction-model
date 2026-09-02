@@ -17,7 +17,7 @@ from profiles import OUTPUT_DIR
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
-RANKING_CSV = DATA_DIR / "fifa_rankings_history_datofutbol.csv"
+RANKING_CSV = DATA_DIR / "fifa_rankings_history_open.csv"
 GEO_CACHE = DATA_DIR / "open_meteo_geocoding_cache.json"
 WEATHER_CACHE = DATA_DIR / "open_meteo_weather_cache.json"
 MATCH_CSV = OUTPUT_DIR / "world_cup_heat_latitude_matches.csv"

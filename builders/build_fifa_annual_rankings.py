@@ -12,21 +12,23 @@ from predict import canonical_team
 ROOT = Path(__file__).resolve().parents[1]
 DATA_DIR = ROOT / "data"
 OUTPUT_DIR = ROOT / "output"
-SOURCE_CSV = DATA_DIR / "fifa_rankings_history_datofutbol.csv"
+SOURCE_CSV = DATA_DIR / "fifa_rankings_history_open.csv"
 OFFICIAL_SNAPSHOTS_CSV = DATA_DIR / "fifa_rankings_official_snapshots.csv"
 ANNUAL_CSV = DATA_DIR / "fifa_rankings_annual_start.csv"
 SUMMARY_MD = OUTPUT_DIR / "fifa_rankings_annual_start_summary.md"
-SOURCE_NAME = "Dato-Futbol/fifa-ranking"
-SOURCE_URL = "https://raw.githubusercontent.com/Dato-Futbol/fifa-ranking/refs/heads/master/ranking_fifa_historical.csv"
+SOURCE_NAME = "cashncarry/fifaworldranking CC0"
+SOURCE_URL = "https://www.kaggle.com/datasets/cashncarry/fifaworldranking"
 OFFICIAL_SOURCE_NAME = "FIFA official API"
 OFFICIAL_PAGE_URL = "https://inside.fifa.com/fifa-world-ranking/men"
 REQUIRED_OFFICIAL_YEARS = {2025, 2026}
 
 
 ALIASES = {
+    "Aotearoa New Zealand": "New Zealand",
     "Bosnia and Herzegovina": "Bosnia and Herzegovina",
     "Brunei Darussalam": "Brunei",
     "Cabo Verde": "Cape Verde",
+    "Cape Verde Islands": "Cape Verde",
     "China PR": "China",
     "Chinese Taipei": "Taiwan",
     "Congo DR": "DR Congo",
@@ -41,6 +43,7 @@ ALIASES = {
     "Korea Republic": "South Korea",
     "Kyrgyz Republic": "Kyrgyzstan",
     "St. Kitts and Nevis": "Saint Kitts and Nevis",
+    "St Kitts and Nevis": "Saint Kitts and Nevis",
     "St. Lucia": "Saint Lucia",
     "St. Vincent / Grenadines": "Saint Vincent and the Grenadines",
     "The Gambia": "Gambia",
@@ -61,7 +64,7 @@ def parse_date(value: str):
 
 def load_source_rows() -> list[dict]:
     rows: list[dict] = []
-    with SOURCE_CSV.open("r", encoding="utf-8", newline="") as fh:
+    with SOURCE_CSV.open("r", encoding="utf-8-sig", newline="") as fh:
         for row in csv.DictReader(fh):
             points = row["total_points"].strip()
             if points in {"", "NA"}:
@@ -189,7 +192,7 @@ def write_summary(rows: list[dict]) -> None:
         f"- 历史原始数据：{SOURCE_URL}",
         f"- 官方补充来源：{OFFICIAL_PAGE_URL}",
         f"- 年份范围：{years[0]} 到 {years[-1]}",
-        "- 取数规则：1992-2025 取该年最早一期 FIFA 男足排名；2026 按当前预测需求取最新一期。",
+        "- 取数规则：1992-2025 取该年最早一期 FIFA 男足排名；2026 固定取世界杯开赛前最后一期。",
         "- rank 说明：原始文件只有积分，本文件按同一期 total_points 降序重新计算名次；同分使用并列名次。",
         "- 官方补充说明：FIFA 官方返回 `rank=null` 的球队不写入年度排名。",
         "",
