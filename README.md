@@ -121,7 +121,9 @@ and synthesized evidence into reviewed context fields; project code applied
 those fields to probabilities, expected goals, goal buckets, and score choices.
 The original workflow used GPT-5.5 with `very high` reasoning. Other models can
 produce different context judgments. The reusable prompt and JSON contract are
-in [`prompts/realtime_context_collection_zh.md`](prompts/realtime_context_collection_zh.md).
+in [`prompts/realtime_context_collection_zh.md`](prompts/realtime_context_collection_zh.md),
+with a runnable input at
+[`examples/realtime_context_example.json`](examples/realtime_context_example.json).
 
 ## Quick Start
 

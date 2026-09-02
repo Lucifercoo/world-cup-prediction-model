@@ -1,0 +1,80 @@
+{
+  "collector": {
+    "model": "example-third-party-model",
+    "reasoning_effort": "high",
+    "collected_at_utc": "2026-06-13T10:00:00+00:00"
+  },
+  "match": {
+    "date_bjt": "2026-06-14",
+    "time_bjt": "03:00",
+    "team_a": "Qatar",
+    "team_b": "Switzerland",
+    "venue": "Santa Clara"
+  },
+  "teams": [
+    {
+      "team": "Qatar",
+      "multipliers": {
+        "home_adaptation_multiplier": null,
+        "travel_multiplier": 0.96,
+        "weather_multiplier": 1.02,
+        "cohesion_multiplier": null,
+        "injury_multiplier": null,
+        "opponent_attack_multiplier": null,
+        "tempo_multiplier": 1.0
+      },
+      "weather_high_c": 30,
+      "travel_km": 13000,
+      "analysis_notes": "Santa Clara was forecast near 30C. Qatar had heat familiarity but a long trip.",
+      "sources": [
+        {
+          "label": "weather",
+          "url": "https://open-meteo.com/",
+          "published_at": null
+        },
+        {
+          "label": "preview",
+          "url": "https://www.rotowire.com/soccer/article/qatar-vs-switzerland-preview-predicted-lineups-team-news-tactical-analysis-2026-world-cup-group-b-117815",
+          "published_at": null
+        }
+      ]
+    },
+    {
+      "team": "Switzerland",
+      "multipliers": {
+        "home_adaptation_multiplier": null,
+        "travel_multiplier": 0.97,
+        "weather_multiplier": 0.96,
+        "cohesion_multiplier": null,
+        "injury_multiplier": 0.97,
+        "opponent_attack_multiplier": null,
+        "tempo_multiplier": 0.99
+      },
+      "weather_high_c": 30,
+      "travel_km": 9400,
+      "analysis_notes": "The forecast was warm for Switzerland and Ruben Vargas was listed as questionable.",
+      "sources": [
+        {
+          "label": "weather",
+          "url": "https://open-meteo.com/",
+          "published_at": null
+        },
+        {
+          "label": "injury",
+          "url": "https://www.rotowire.com/soccer/article/qatar-vs-switzerland-preview-predicted-lineups-team-news-tactical-analysis-2026-world-cup-group-b-117815",
+          "published_at": null
+        }
+      ]
+    }
+  ],
+  "shape": {
+    "pre_match_shapes": [],
+    "draw_multiplier": 1.0,
+    "tempo_multiplier": 1.0,
+    "favorite_attack_multiplier": 1.0,
+    "underdog_attack_multiplier": 1.0,
+    "notes": "No separate pre-match shape adjustment was used in this example.",
+    "sources": []
+  },
+  "key_players": []
+}

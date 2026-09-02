@@ -7,6 +7,8 @@ import pytest
 
 from scripts.prepare_realtime_context_package import validate_and_convert
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 def payload() -> dict:
     source = {"label": "official", "url": "https://example.com/team-news", "published_at": None}
@@ -72,3 +74,13 @@ def test_context_package_rejects_out_of_range_multiplier(tmp_path: Path) -> None
     value["teams"][0]["multipliers"]["injury_multiplier"] = 0.5
     with pytest.raises(ValueError, match="outside"):
         validate_and_convert(value, tmp_path)
+
+
+def test_documented_context_example_is_runnable(tmp_path: Path) -> None:
+    import json
+
+    value = json.loads(
+        (ROOT / "examples" / "realtime_context_example.json").read_text(encoding="utf-8")
+    )
+    validate_and_convert(value, tmp_path)
+    assert (tmp_path / "realtime_team_context.csv").exists()
