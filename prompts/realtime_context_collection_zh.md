@@ -53,13 +53,13 @@ Markdown、解释或额外字段。collector.model和collector.reasoning_effort�
 将模型输出保存为 JSON，然后验证并转换：
 
 ```powershell
-uv run python scripts/prepare_realtime_context_package.py context.json --output-dir context-package
+uv run python scripts/prepare_realtime_context_package.py context.json --output-dir output/context-package
 ```
 
 不调用模型也可以先用仓库中的真实赛前结构示例检查环境：
 
 ```powershell
-uv run python scripts/prepare_realtime_context_package.py examples/realtime_context_example.json --output-dir context-package
+uv run python scripts/prepare_realtime_context_package.py examples/realtime_context_example.json --output-dir output/context-package
 ```
 
 转换后的三个 CSV 需要人工审核，再合并到 `data/`。原始 JSON 应与预测一起保存，以便

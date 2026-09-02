@@ -13,6 +13,10 @@ data/*
 !data/strict_pre_match_predictions_manifest.json
 
 # Large, generated, or temporary runtime artifacts.
+output/*
+!output/finished_realtime_cache_evaluation.csv
+!output/finished_realtime_cache_evaluation_summary.md
+!output/base_vs_realtime_evaluation_summary.md
 output/realtime_context_cache/
 output/daily_reports/
 output/strict_asof_backup_*/
