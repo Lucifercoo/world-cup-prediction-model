@@ -141,7 +141,7 @@ def competition_ranks(rows: list[dict]) -> dict[str, dict]:
 
 def load_ranking_snapshots() -> dict[int, dict]:
     rows_by_date: dict[date, list[dict]] = defaultdict(list)
-    with RANKING_CSV.open("r", encoding="utf-8", newline="") as fh:
+    with RANKING_CSV.open("r", encoding="utf-8-sig", newline="") as fh:
         for row in csv.DictReader(fh):
             points = row["total_points"].strip()
             if points in {"", "NA"}:

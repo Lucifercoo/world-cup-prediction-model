@@ -516,9 +516,9 @@ def outcome_probabilities(
     raw_point_edge = rank_a.points - rank_b.points
     point_edge = adjusted_point_edge(match, team_a, team_b, raw_point_edge)
     point_edge += market_value_edge_points(value_a, value_b)
-    if host_multiplier(team_a, match.venue) > 1.0:
+    if host_multiplier(team_a, match.venue, match.home_team) > 1.0:
         point_edge += 35.0
-    if host_multiplier(team_b, match.venue) > 1.0:
+    if host_multiplier(team_b, match.venue, match.home_team) > 1.0:
         point_edge -= 35.0
 
     non_draw_a = 1.0 / (1.0 + math.exp(-point_edge / POINT_EDGE_SCALE))
@@ -553,9 +553,9 @@ def expected_goals(
     p_a, _, p_b = outcome_probabilities(match, rankings, profiles, market_values)
     style_point_edge = adjusted_point_edge(match, team_a, team_b, rank_a.points - rank_b.points)
     style_point_edge += market_value_edge_points(value_a, value_b)
-    if host_multiplier(team_a, match.venue) > 1.0:
+    if host_multiplier(team_a, match.venue, match.home_team) > 1.0:
         style_point_edge += 35.0
-    if host_multiplier(team_b, match.venue) > 1.0:
+    if host_multiplier(team_b, match.venue, match.home_team) > 1.0:
         style_point_edge -= 35.0
     style_effect = apply_style_influence_gate(
         style_matchup_effect(
@@ -585,9 +585,9 @@ def expected_goals(
     )
     split_a += style_effect.xg_split_shift
 
-    if host_multiplier(team_a, match.venue) > 1.0:
+    if host_multiplier(team_a, match.venue, match.home_team) > 1.0:
         split_a += 0.03
-    if host_multiplier(team_b, match.venue) > 1.0:
+    if host_multiplier(team_b, match.venue, match.home_team) > 1.0:
         split_a -= 0.03
 
     split_a = clamp(split_a, 0.18, 0.82)
@@ -1898,9 +1898,9 @@ def predict_match(
     style_features_b = team_profile_features(profiles[team_b])
     style_point_edge = adjusted_point_edge(match, team_a, team_b, rankings[team_a].points - rankings[team_b].points)
     style_point_edge += market_value_edge_points(market_values[team_a], market_values[team_b])
-    if host_multiplier(team_a, match.venue) > 1.0:
+    if host_multiplier(team_a, match.venue, match.home_team) > 1.0:
         style_point_edge += 35.0
-    if host_multiplier(team_b, match.venue) > 1.0:
+    if host_multiplier(team_b, match.venue, match.home_team) > 1.0:
         style_point_edge -= 35.0
     style_influence = style_influence_factor(point_edge=style_point_edge)
     style_effect = apply_style_influence_gate(

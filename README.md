@@ -26,6 +26,46 @@ match's historical forecast.
 
 The chart shows the realtime-assisted operational system, not the base model alone.
 
+## Predict One Match
+
+Prepare the public data once:
+
+```powershell
+uv sync
+uv run python -m wc_model setup
+```
+
+For a hypothetical Argentina away match against Belgium tomorrow:
+
+```powershell
+uv run python -m wc_model predict-match `
+  --team-a Argentina `
+  --team-b Belgium `
+  --kickoff 2026-09-03T20:00:00+08:00 `
+  --stage friendly `
+  --venue Brussels `
+  --home b
+```
+
+The command prints outcome probabilities, expected goals, Top-1 and Top-2 goal
+buckets, and the four score candidates. It also writes Markdown and JSON files
+under `output/single_match_predictions/`.
+
+Single-match prediction uses existing local data and does **not** refresh it
+automatically. The output lists the date, source, proxy status, and use status
+of every input. Missing optional squad value, cohesion, lineup, injury, weather,
+or key-player information disables only that adjustment. Missing FIFA rankings
+or rolling profiles stops the prediction. The current profiles cover the 48
+teams in the 2026 World Cup dataset.
+
+Use `--home a`, `--home b`, or `--home neutral`. Kickoff time must include a
+timezone. Supported stages are `friendly`, `qualifier`, `group`, `r32`, `r16`,
+`qf`, `sf`, `final`, and `third-place`.
+
+`--stage group` alone does not identify the group, round, or standings. The
+command therefore skips group-situation adjustments and reports that status
+instead of assuming a tournament state.
+
 ## Results
 
 The strict evaluation covers 79 matches with a recorded pre-match forecast.
@@ -202,6 +242,7 @@ LLM context workflow, and extension contracts are in
 | --- | --- |
 | Reproduce the published 79-match evaluation | `uv run python -m wc_model evaluate` |
 | Prepare public data and run the model | `uv run python -m wc_model setup` |
+| Predict one new match | `uv run python -m wc_model predict-match ...` |
 | Inspect one date | `uv run python -m wc_model inspect --date 2026-07-20` |
 | Inspect one team | `uv run python -m wc_model inspect --team Spain` |
 | Generate a Markdown report | `uv run python -m wc_model report 2026-07-20 --no-build` |
@@ -321,6 +362,7 @@ retrofitting. More detail is available in [the design document](docs/DESIGN.md).
 |-- reports/       # Daily Markdown report generation
 |-- scripts/       # Reproducible documentation utilities
 |-- wc_model.py    # Unified project command entry point
+|-- single_match_prediction.py # Arbitrary single-match prediction
 |-- prediction_rules.py # Shared score and total-goal contracts
 |-- predict*.py    # Base and profile prediction models
 |-- realtime_*.py  # Pre-match context adjustment and cache generation

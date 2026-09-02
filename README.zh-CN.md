@@ -24,6 +24,72 @@
 
 图中展示的是包含实时信息的实际工作系统，不是单独的基础模型。
 
+## 直接预测一场比赛
+
+首次使用先准备公开数据：
+
+```powershell
+uv sync
+uv run python -m wc_model setup
+```
+
+假设明天由比利时主场迎战阿根廷，直接运行：
+
+```powershell
+uv run python -m wc_model predict-match `
+  --team-a 阿根廷 `
+  --team-b 比利时 `
+  --kickoff 2026-09-03T20:00:00+08:00 `
+  --stage friendly `
+  --venue 布鲁塞尔 `
+  --home b
+```
+
+其中，`--home a` 表示第一支球队主场，`--home b` 表示第二支球队主场，
+`--home neutral` 表示中立场。`--kickoff` 必须包含时区。
+
+程序会直接显示：
+
+```text
+胜负参考：阿根廷胜
+胜平负概率：阿根廷 / 平局 / 比利时
+期望进球：两队各自 xG
+总球：Top-1 / Top-2
+比分：模型 / 备选 / 身价 / 爆冷
+```
+
+同时生成可阅读的 Markdown 和适合程序处理的 JSON，保存在
+`output/single_match_predictions/`。
+
+该命令**默认使用本地现有数据，不会自动联网更新**。即使数据较旧，也会继续预测，
+并在结果下方列出每项数据的截止时间和状态，例如：
+
+| 数据 | 默认处理 |
+| --- | --- |
+| FIFA/赛事实时排名 | 使用本地最新版本，并显示更新日期 |
+| 十年球队画像 | 使用现有画像，并显示训练截止日期 |
+| 身价 | 有数据就使用；公开版会明确标记为代理数据 |
+| 俱乐部集中度 | 有数据就使用，没有则关闭该修正 |
+| 首发、伤停、天气、关键球员 | 用户未提供时不使用 |
+| 世界杯赛中状态 | 任意单场预测默认关闭，避免误用于其他赛事 |
+
+FIFA 排名或十年球队画像完全缺失时无法形成核心预测，程序会提示先运行 `setup`。
+当前球队画像覆盖 48 支 2026 世界杯球队。
+
+`--stage` 可选值：
+
+| 值 | 比赛类型 |
+| --- | --- |
+| `friendly` | 友谊赛 |
+| `qualifier` | 预选赛 |
+| `group` | 小组赛 |
+| `r32` / `r16` | 三十二强 / 十六强 |
+| `qf` / `sf` | 四分之一决赛 / 半决赛 |
+| `final` / `third-place` | 决赛 / 三四名比赛 |
+
+只提供 `--stage group` 时，程序不知道具体小组、轮次和积分，因此不会猜测出线形势，
+并会在数据状态中标记该修正未使用。
+
 ## 评估结果
 
 严格评估包含 79 场具有赛前预测记录的比赛。实际工作系统的结果包含人工发起的
@@ -177,6 +243,7 @@ P(总球桶 k) = normalize(exp(-(总球期望 - 桶中心_k)^2 / (2*sigma^2)))
 | --- | --- |
 | 复现已发布的 79 场评估 | `uv run python -m wc_model evaluate` |
 | 准备公开数据并运行模型 | `uv run python -m wc_model setup` |
+| 预测一场新比赛 | `uv run python -m wc_model predict-match ...` |
 | 查看指定日期 | `uv run python -m wc_model inspect --date 2026-07-20` |
 | 查看指定球队 | `uv run python -m wc_model inspect --team Spain` |
 | 生成 Markdown 日报 | `uv run python -m wc_model report 2026-07-20 --no-build` |
@@ -284,6 +351,7 @@ uv run python -m wc_model experiment run low-block-effect
 |-- reports/       # 每日 Markdown 报告
 |-- scripts/       # 可复现文档与辅助工具
 |-- wc_model.py    # 统一项目命令入口
+|-- single_match_prediction.py # 任意单场预测入口
 |-- prediction_rules.py # 共享比分和总球桶契约
 |-- predict*.py    # 基础预测和画像预测模型
 |-- realtime_*.py  # 赛前实时信息调整和缓存生成

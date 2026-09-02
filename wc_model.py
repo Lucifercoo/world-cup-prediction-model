@@ -218,6 +218,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     evaluate_parser.add_argument("--cache-dir", help="Full cache path used with --source cache.")
 
+    predict_match_parser = commands.add_parser(
+        "predict-match",
+        help="Predict one match with existing local data.",
+    )
+    predict_match_parser.add_argument("--team-a", required=True)
+    predict_match_parser.add_argument("--team-b", required=True)
+    predict_match_parser.add_argument("--kickoff", required=True)
+    predict_match_parser.add_argument(
+        "--stage",
+        required=True,
+        choices=("friendly", "qualifier", "group", "r32", "r16", "qf", "sf", "final", "third-place"),
+    )
+    predict_match_parser.add_argument("--venue", default="未指定")
+    predict_match_parser.add_argument("--home", choices=("a", "b", "neutral"), default="neutral")
+    predict_match_parser.add_argument("--output-dir")
+
     inspect_parser = commands.add_parser("inspect", help="Inspect generated match predictions.")
     inspect_parser.add_argument("--date", help="Filter by Beijing date (YYYY-MM-DD).")
     inspect_parser.add_argument("--team", help="Filter by English team name.")
@@ -266,6 +282,18 @@ def main(argv: list[str] | None = None) -> int:
         if args.input:
             arguments.extend(("--input", args.input))
         run_module("scripts.inspect_predictions", *arguments)
+    elif args.command == "predict-match":
+        arguments = [
+            "--team-a", args.team_a,
+            "--team-b", args.team_b,
+            "--kickoff", args.kickoff,
+            "--stage", args.stage,
+            "--venue", args.venue,
+            "--home", args.home,
+        ]
+        if args.output_dir:
+            arguments.extend(("--output-dir", args.output_dir))
+        run_module("single_match_prediction", *arguments)
     elif args.command == "context":
         run_context(args)
     elif args.experiment_command == "list":

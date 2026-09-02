@@ -62,6 +62,7 @@ class Match:
     team_a: str
     team_b: str
     venue: str
+    home_team: str | None = None
 
 
 @dataclass(frozen=True)
@@ -384,9 +385,12 @@ def score_matrix(lambda_a: float, lambda_b: float) -> list[list[float]]:
     return [[p / total for p in row] for row in matrix]
 
 
-def host_multiplier(team: str, venue: str) -> float:
-    host = HOST_COUNTRY_BY_VENUE.get(venue)
-    if host is None and team == "United States":
+def host_multiplier(team: str, venue: str, designated_home_team: str | None = None) -> float:
+    if designated_home_team is not None:
+        host = canonical_team(designated_home_team) if designated_home_team else None
+    else:
+        host = HOST_COUNTRY_BY_VENUE.get(venue)
+    if designated_home_team is None and host is None and team == "United States":
         host = "United States"
     return 1.09 if host == team else 1.0
 

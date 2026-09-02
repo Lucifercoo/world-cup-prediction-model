@@ -178,6 +178,40 @@ def test_context_prepare_and_apply_are_forwarded(monkeypatch: pytest.MonkeyPatch
     ]
 
 
+def test_predict_match_arguments_are_forwarded(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        wc_model,
+        "run_module",
+        lambda module, *arguments: calls.append((module, arguments)),
+    )
+
+    assert wc_model.main(
+        [
+            "predict-match",
+            "--team-a", "阿根廷",
+            "--team-b", "比利时",
+            "--kickoff", "2026-09-03T20:00:00+08:00",
+            "--stage", "friendly",
+            "--venue", "Brussels",
+            "--home", "b",
+        ]
+    ) == 0
+    assert calls == [
+        (
+            "single_match_prediction",
+            (
+                "--team-a", "阿根廷",
+                "--team-b", "比利时",
+                "--kickoff", "2026-09-03T20:00:00+08:00",
+                "--stage", "friendly",
+                "--venue", "Brussels",
+                "--home", "b",
+            ),
+        )
+    ]
+
+
 def test_registered_experiment_modules_exist() -> None:
     missing = [
         experiment.module

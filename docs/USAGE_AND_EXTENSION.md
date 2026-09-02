@@ -9,6 +9,7 @@ and use `uv`.
 | --- | --- | --- |
 | Reproduce the published metrics | `uv run python -m wc_model evaluate` | Evaluation CSV and two Markdown summaries in `output/` |
 | Build the public model variant | `uv run python -m wc_model setup` | Prepared data, profiles, rankings, and predictions |
+| Predict one new match | `uv run python -m wc_model predict-match ...` | Terminal result plus Markdown and JSON |
 | Rebuild after editing model inputs | `uv run python -m wc_model build` | Refreshed prediction outputs |
 | Inspect generated predictions | `uv run python -m wc_model inspect --date 2026-07-20` | Compact terminal table |
 | Generate a daily report | `uv run python -m wc_model report 2026-07-20 --no-build` | `output/daily_reports/2026-07-20.md` |
@@ -31,6 +32,42 @@ proxies for restricted inputs, and executes the pipeline. It requires network
 access. `evaluate` does not require the original 1.89 GB realtime cache because
 the checked-in strict pre-match archive contains the minimum required forecast
 state.
+
+## Predict One New Match
+
+```powershell
+uv run python -m wc_model predict-match `
+  --team-a Argentina `
+  --team-b Belgium `
+  --kickoff 2026-09-03T20:00:00+08:00 `
+  --stage friendly `
+  --venue Brussels `
+  --home b
+```
+
+The command does not access the network. It uses existing local inputs and
+reports their dates. Old but valid data remains usable and is marked as not
+automatically updated. Optional squad-value and club-cohesion layers are
+disabled when their team rows are absent. Realtime lineup, injury, weather,
+and key-player evidence is not assumed when the user does not provide it.
+
+FIFA/live ranking and a rolling team profile are required. The command rejects
+a live ranking that includes results after kickoff, because that would leak
+future information. Arbitrary single matches do not use the stored 2026 World
+Cup tournament-state adjustments.
+
+| Argument | Values |
+| --- | --- |
+| `--team-a`, `--team-b` | English or Chinese names from the current 48-team profile set |
+| `--kickoff` | ISO 8601 timestamp with timezone |
+| `--stage` | `friendly`, `qualifier`, `group`, `r32`, `r16`, `qf`, `sf`, `final`, `third-place` |
+| `--home` | `a`, `b`, or `neutral` |
+| `--venue` | Display name for the venue |
+| `--output-dir` | Optional destination for JSON and Markdown |
+
+For `--stage group`, no group-situation adjustment is made unless a future
+interface supplies the group members, round, and standings. The command does
+not infer those missing inputs.
 
 ## Read the Output
 
