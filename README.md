@@ -1,5 +1,7 @@
 <div align="center">
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 # World Cup Prediction Model
 
 **Time-aware forecasts for match outcomes, total goals, and exact scores.**
