@@ -47,6 +47,35 @@ uv run python -m wc_model predict-match `
   --home b
 ```
 
+Example output using the public data prepared on 2026-09-02 follows. Values may
+change when the local inputs are updated.
+
+| Item | Result |
+| --- | --- |
+| Outcome | Argentina win |
+| Probabilities | Argentina 52.4% / Draw 26.4% / Belgium 21.2% |
+| Expected goals | Argentina 3.01 / Belgium 0.63 |
+| Total goals | Top-1 4-5 / Top-2 2-3 |
+| Scores | Model 3-1 / Backup 2-1 / Market 4-1 / Upset 1-1 |
+| Risk | Medium: close FIFA rankings; one-goal low-score risk |
+
+The same run reports which inputs were actually used:
+
+| Data | Used | As of | Status |
+| --- | --- | --- | --- |
+| FIFA/tournament ranking | Yes | 2026-07-20 | Not automatically refreshed; 45 days before kickoff |
+| Ten-year team profile | Yes | 2026-06-12 | Not automatically refreshed; 83 days before kickoff |
+| Squad value | Yes | 2026 World Cup cycle | Public proxy data |
+| Club cohesion | Yes | 2026 World Cup squad | 2026 World Cup squad |
+| Lineup, injuries, weather, key players | No | - | Not provided; unused |
+
+The complete result is also written to:
+
+```text
+output/single_match_predictions/20260903_argentina-belgium.md
+output/single_match_predictions/20260903_argentina-belgium.json
+```
+
 The command prints outcome probabilities, expected goals, Top-1 and Top-2 goal
 buckets, and the four score candidates. It also writes Markdown and JSON files
 under `output/single_match_predictions/`.
