@@ -98,7 +98,8 @@ def main() -> int:
                 f"{pct(item['exact'] / denominator)} | {pct(item['outcome'] / denominator)} | "
                 f"{pct(item['bucket'] / denominator)} | {item['median_deviation']:.3f} |"
             )
-    OUTPUT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with OUTPUT_MD.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n".join(lines) + "\n")
     print(f"Summary: {OUTPUT_MD}")
     return 0
 

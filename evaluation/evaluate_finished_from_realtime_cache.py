@@ -393,7 +393,8 @@ def write_summary(rows: list[dict], skipped: list[dict], source: str) -> None:
     )
     for row in skipped:
         lines.append(f"| {row['date_bjt']} {row['time_bjt']} | {row['team_a']} vs {row['team_b']} | {row['reason']} |")
-    SUMMARY_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with SUMMARY_MD.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n".join(lines) + "\n")
 
 
 def write_bucket_reweight_experiment(rows: list[dict]) -> None:
@@ -409,7 +410,8 @@ def write_bucket_reweight_experiment(rows: list[dict]) -> None:
     for factor in TOTAL_GOAL_BUCKET_REWEIGHT_FACTORS:
         hits = sum(reweighted_bucket_hit(row, factor) for row in rows)
         lines.append(f"| {factor:.2f} | {hits}/{len(rows)} | {pct(hits / denominator)} |")
-    BUCKET_REWEIGHT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    with BUCKET_REWEIGHT_MD.open("w", encoding="utf-8", newline="\n") as handle:
+        handle.write("\n".join(lines) + "\n")
 
 
 def parse_args() -> argparse.Namespace:
