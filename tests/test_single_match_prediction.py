@@ -3,6 +3,7 @@ from __future__ import annotations
 from argparse import Namespace
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -99,8 +100,47 @@ def test_prediction_runs_without_optional_inputs(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    profile_csv = tmp_path / "profiles.csv"
+    ranking_csv = tmp_path / "rankings.csv"
+    profile_csv.touch()
+    ranking_csv.touch()
+    monkeypatch.setattr(single.model, "PROFILE_CSV", profile_csv)
+    monkeypatch.setattr(single.model, "LIVE_RANKING_CSV", ranking_csv)
+    monkeypatch.setattr(single.model, "FIFA_RANKING_CSV", tmp_path / "missing-fifa.csv")
+    monkeypatch.setattr(single, "LIVE_RESULTS_CSV", tmp_path / "missing-results.csv")
     monkeypatch.setattr(single, "MARKET_VALUE_CSV", tmp_path / "missing-values.csv")
     monkeypatch.setattr(single, "COHESION_CSV", tmp_path / "missing-cohesion.csv")
+    rankings = {
+        team: SimpleNamespace(rank=rank, points=points, snapshot_date="live:2026-06-11")
+        for team, rank, points in (
+            ("Argentina", 1, 1877.0),
+            ("Belgium", 8, 1760.0),
+        )
+    }
+    profiles = {
+        team: SimpleNamespace(style="攻守兼备型")
+        for team in rankings
+    }
+    raw_prediction = {
+        "predicted_outcome": "A",
+        "p_a": 0.5,
+        "p_draw": 0.3,
+        "p_b": 0.2,
+        "xg_a": 1.5,
+        "xg_b": 0.8,
+        "selected_total_goal_bucket": "2-3球",
+        "top_total_goal_buckets": "2-3球 40%; 0-1球 30%",
+        "bucket_primary_score": "2-0",
+        "bucket_complement_score": "1-0",
+        "market_value_score": "1-1",
+        "upset_score": "0-0",
+        "risk_label": "中",
+        "risk_reasons": "测试",
+    }
+    monkeypatch.setattr(single.model, "load_fifa_rankings", lambda: rankings)
+    monkeypatch.setattr(single.model, "load_profiles", lambda: profiles)
+    monkeypatch.setattr(single.model, "profile_baselines", lambda values: object())
+    monkeypatch.setattr(single.model, "predict_match", lambda *args: raw_prediction)
     args = Namespace(
         team_a="阿根廷",
         team_b="比利时",
